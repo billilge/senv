@@ -2,6 +2,11 @@
   "name": "@billilge/senv",
   "version": "0.1.0",
   "description": "Stream Env Control CLI: 환경변수를 받아 쓰고 실행한다",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/billilge/senv.git",
+    "directory": "apps/cli"
+  },
   "type": "module",
   "bin": {
     "senv": "./dist/cli.js"

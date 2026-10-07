@@ -232,7 +232,7 @@ flowchart LR
 | 로컬 개발 | 대시보드는 `pnpm dev:mock`, 서버 테스트는 Testcontainers MySQL + 메모리 저장소 | R2·MinIO 없이 개발·테스트한다. 실제 R2 어댑터는 얇게 두고 자동 테스트하지 않는다 |
 | 린트·포맷 | Biome | 린트와 포맷을 한 도구로 처리한다. 서버에서는 `useImportType` 규칙을 끈다. Nest DI가 런타임 타입 메타데이터를 쓰기 때문이다 |
 | CI | GitHub Actions | 테스트, CLI를 GitHub Packages로 릴리즈 |
-| 버전 관리 | Changesets | CLI 버전과 변경 기록 |
+| 버전 관리 | 손으로 올리고 `cli-v<version>` 태그 (M1) | Changesets는 필요해지면 붙인다 (결정 58) |
 | 이미지 빌드 | `turbo prune @senv/server @senv/dashboard --docker` + 멀티 스테이지 Dockerfile | 서버와 대시보드에 필요한 패키지만 담는다. 대시보드 빌드는 서버 이미지에 함께 들어간다 |
 
 ### 4.3 모노레포 구조
@@ -1002,6 +1002,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 55 | 원격 값 가져오기 | 원격 값(매핑의 키 필터 안) 중 지금 값과 다른 것만 그 환경의 새 버전으로 게시한다(메시지 "{리소스}에서 가져옴", 지우지는 않는다). 스키마에 없는 키는 secret·필수로 등록하고 빌드 시점 표시는 원격을 따른다. 원격 값을 읽을 수 없는 제공자는 지원하지 않는다(422) | 8.4 |
 | 56 | 배포 대상 화면 | 관리자 전용 헤더 탭 "배포 대상"(`/admin/targets`)에서 연결을 추가·확인·편집·삭제한다. 폼은 제공자가 내준 필드 명세로 그리고 비밀 필드는 가린다. 프로젝트 화면의 "배포" 탭(공유 그룹에는 없음)에 매핑마다 환경·리소스·연결·동기화 방식·마지막 반영 버전과 결과를 보여주고, "지금 동기화"(바뀔 키와 반영 후 동작을 확인한 뒤), "기록", "가져오기", "드리프트 확인"을 둔다. 드리프트가 있으면 경고와 함께 덮어쓰기·가져오기를 안내한다. 매핑 추가(연결 → 리소스 → 환경 → 옵션)와 삭제는 관리자만. 목업 모드는 가짜 Coolify로 같은 흐름을 보여주고, 게시하면 자동 매핑을 바로 반영한다 | 7.1, 8장 |
 | 57 | 브라우저 E2E 실행 | Playwright는 로컬에 설치된 Chrome(`channel: 'chrome'`)으로 돌려 브라우저를 내려받지 않고, CI에서만 Chromium을 설치한다. 서버는 테스트 전용 진입점(메모리 저장소, 가짜 GitHub, 메모리 배포 대상)을 따로 빌드(`build:e2e`)해 별도 프로세스로 띄우므로 가짜 코드가 프로덕션 빌드·이미지에 들어가지 않는다. `e2e/browser/run.ts`가 MySQL(로컬 이미지)·마이그레이션·서버·세션 쿠키를 준비한 뒤 Playwright를 자식 프로세스로 돌린다(Playwright 로더가 Node 24에서 testcontainers를 못 불러오기 때문). 몇 분 걸리고 Chrome이 필요해 `pnpm verify`가 아닌 `pnpm test:browser`로 따로 돌리고 CI에서 돌린다. 흐름: 프로젝트 만들기 → 값 게시 → 버전 기록 → 배포 대상 연결 → 매핑 → 지금 동기화 | 4.2 |
+| 58 | CI와 CLI 배포 | GitHub Actions `CI`가 main 푸시와 PR마다 `pnpm verify`, 브라우저 E2E(Chromium 설치), 배포 이미지 검사(`smoke:docker`)를 돌린다. CLI는 `cli-v<version>` 태그를 푸시하면 태그와 `apps/cli/package.json` 버전이 같은지 확인하고 검사한 뒤 GitHub Packages에 올린다(`GITHUB_TOKEN`). `--version`과 package.json 버전이 같은지 테스트로 막는다. Changesets는 M1에서 쓰지 않고 버전은 손으로 올린다 | 4.2, 6.3 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
@@ -1067,7 +1068,7 @@ R2(S3) 어댑터와 실제 GitHub HTTP 클라이언트는 자동 테스트하지
 | 7 | CLI `status`·`diff`·`set`·`push`·`export`·`doctor` | 완료 |
 | 8 | 배포 대상 연동 (결정 46): core 인터페이스·계획 계산, `target-testkit`, `target-coolify`, 연결·매핑, `jobs` 큐와 worker 동기화, 재시작·재배포, 동기화 기록, diff 미리보기, 초기 가져오기, 드리프트 감지, 대시보드 화면 | 완료 (실제 Coolify 버전 확인은 14.1) |
 | 9 | 브라우저 E2E (Playwright, 결정 34·57) | 완료 (`pnpm test:browser`) |
-| 10 | GitHub Actions: 검사(CI), CLI를 GitHub Packages로 배포 | 남음 |
+| 10 | GitHub Actions: 검사(CI), CLI를 GitHub Packages로 배포 | 완료 (push 후 첫 실행에서 확인) |
 | - | 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관) | 담당자 작업 |
 
 ### 15.4 PRD 원안과 다르게 구현한 것

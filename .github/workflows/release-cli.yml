@@ -1,0 +1,36 @@
+# CLI 배포 (PRD 6.3, 결정 58): cli-v<version> 태그를 푸시하면 GitHub Packages에 올린다
+name: CLI 배포
+
+on:
+  push:
+    tags: ['cli-v*']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@billilge'
+      - run: pnpm install --frozen-lockfile
+      - name: 태그와 package.json 버전이 같은지 확인
+        run: |
+          version=$(node -p "require('./apps/cli/package.json').version")
+          if [ "cli-v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "태그 ${GITHUB_REF_NAME}와 apps/cli/package.json의 버전 ${version}이 다릅니다" >&2
+            exit 1
+          fi
+      - run: pnpm verify
+      - run: pnpm --filter @billilge/senv publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

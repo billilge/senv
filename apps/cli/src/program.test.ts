@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { createSenvClient } from '@senv/api-client';
 import { describe, expect, it } from 'vitest';
-import { main } from './program.js';
+import { main, VERSION } from './program.js';
 import { createTestContext, FakeApi, signedIn, TEST_API_URL } from './testing/fake-api.js';
 import { makeTempDir } from './testing/temp-dir.js';
 
@@ -170,5 +170,10 @@ describe('senv 명령줄', () => {
     expect(await exec('push', '--yes')).toBe(0);
     expect(await exec('doctor')).toBe(0);
     expect(stderr.join('')).toMatch(/최신입니다/);
+  });
+
+  it('--version은 package.json의 version과 같다 (배포 태그 cli-v<version>과 맞춘다)', async () => {
+    const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+    expect(VERSION).toBe(pkg.version);
   });
 });
