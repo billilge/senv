@@ -1,6 +1,7 @@
 import { PasteIcon, PlusIcon, TrashIcon, UndoIcon } from '@primer/octicons-react';
 import {
   Button,
+  Checkbox,
   CounterLabel,
   Flash,
   FormControl,
@@ -36,6 +37,8 @@ export interface EnvironmentEditorProps {
   values: EnvironmentValues;
   onCancel: () => void;
   onPublished: (version: number) => void;
+  /** 편집을 시작할 때 미리 담을 값 (환경 간 복사, 결정 47) */
+  initialChanges?: Record<string, string>;
 }
 
 /** 한 환경의 값을 고쳐 변경을 확인한 뒤 한 번에 게시한다 (한 번 게시 = 한 버전) */
@@ -44,12 +47,16 @@ export function EnvironmentEditor({
   values,
   onCancel,
   onPublished,
+  initialChanges,
 }: EnvironmentEditorProps) {
   const api = useApi();
   const queryClient = useQueryClient();
   const env = values.env;
   const [base, setBase] = useState(values);
-  const [draft, setDraft] = useState<Record<string, string>>(values.variables);
+  const [draft, setDraft] = useState<Record<string, string>>({
+    ...values.variables,
+    ...initialChanges,
+  });
   const [reviewing, setReviewing] = useState(false);
   const [rebasedOn, setRebasedOn] = useState<number | null>(null);
 
@@ -89,7 +96,12 @@ export function EnvironmentEditor({
     setDraft((current) => ({ ...current, [key]: value }));
   const remove = (key: string) =>
     setDraft((current) => Object.fromEntries(Object.entries(current).filter(([k]) => k !== key)));
-  const merge = (next: Record<string, string>) => setDraft((current) => ({ ...current, ...next }));
+  const merge = (set: Record<string, string>, remove: string[]) =>
+    setDraft((current) =>
+      Object.fromEntries(
+        Object.entries({ ...current, ...set }).filter(([key]) => !remove.includes(key)),
+      ),
+    );
 
   return (
     <Stack gap="normal">
@@ -222,7 +234,7 @@ export function EnvironmentEditor({
           )}
           <div className={styles.tools}>
             <AddKey existing={draft} onAdd={setValue} />
-            <PasteDotenv onApply={merge} />
+            <PasteDotenv current={draft} onApply={merge} />
           </div>
           <Stack direction="horizontal" gap="condensed">
             <Button
@@ -300,22 +312,51 @@ function AddKey({
   );
 }
 
-function PasteDotenv({ onApply }: { onApply: (values: Record<string, string>) => void }) {
+type PastePreview =
+  | { error: string }
+  | { values: Record<string, string>; added: string[]; changed: string[]; candidates: string[] };
+
+/** 붙여넣은 .env를 지금 값과 견줘 추가·변경·삭제 후보로 나눈다 (PRD 7.2) */
+function previewPaste(text: string, current: Record<string, string>): PastePreview | null {
+  if (!text.trim()) return null;
+  let values: Record<string, string>;
+  try {
+    values = parseDotenv(text);
+  } catch (cause) {
+    if (cause instanceof DotenvParseError) return { error: cause.message };
+    throw cause;
+  }
+  const invalid = Object.keys(values).filter((key) => !isValidKeyName(key));
+  if (invalid.length > 0) return { error: `${KEY_RULE}: ${invalid.join(', ')}` };
+  const diff = diffVariables(current, { ...current, ...values });
+  return {
+    values,
+    added: diff.added,
+    changed: diff.changed,
+    candidates: Object.keys(current)
+      .filter((key) => !Object.hasOwn(values, key))
+      .sort(),
+  };
+}
+
+/** 삭제 후보는 기본으로 고르지 않는다. 고른 것만 지운다 (결정 48) */
+function PasteDotenv({
+  current,
+  onApply,
+}: {
+  current: Record<string, string>;
+  onApply: (set: Record<string, string>, remove: string[]) => void;
+}) {
   const [text, setText] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string[]>([]);
+  const preview = previewPaste(text, current);
+  const ready = preview !== null && !('error' in preview);
 
   const apply = () => {
-    let parsed: Record<string, string>;
-    try {
-      parsed = parseDotenv(text);
-    } catch (cause) {
-      if (cause instanceof DotenvParseError) return setError(cause.message);
-      throw cause;
-    }
-    const invalid = Object.keys(parsed).filter((key) => !isValidKeyName(key));
-    if (invalid.length > 0) return setError(`${KEY_RULE}: ${invalid.join(', ')}`);
-    onApply(parsed);
+    if (!ready) return;
+    onApply(preview.values, removing);
     setText('');
+    setRemoving([]);
   };
 
   return (
@@ -324,7 +365,7 @@ function PasteDotenv({ onApply }: { onApply: (values: Record<string, string>) =>
         <FormControl>
           <FormControl.Label>.env 붙여넣기</FormControl.Label>
           <FormControl.Caption>
-            같은 키는 붙여넣은 값으로 바뀌고, 없던 키는 추가됩니다
+            붙여넣으면 추가·변경·삭제 후보로 나눠 보여줍니다. 삭제 후보는 고른 것만 지웁니다
           </FormControl.Caption>
           <Textarea
             block
@@ -333,15 +374,49 @@ function PasteDotenv({ onApply }: { onApply: (values: Record<string, string>) =>
             className={styles.mono}
             placeholder={'API_URL=https://api.example.com\nDEBUG=false'}
             value={text}
-            onChange={(event) => {
-              setText(event.target.value);
-              setError(null);
-            }}
+            onChange={(event) => setText(event.target.value)}
           />
-          {error && <FormControl.Validation variant="error">{error}</FormControl.Validation>}
+          {preview && 'error' in preview && (
+            <FormControl.Validation variant="error">{preview.error}</FormControl.Validation>
+          )}
         </FormControl>
+        {ready && (
+          <section aria-label="붙여넣은 내용">
+            <ul className={list.box}>
+              {preview.added.map((key) => (
+                <li key={key} className={list.row}>
+                  <Label variant="success">추가</Label> <code className={table.key}>{key}</code>
+                </li>
+              ))}
+              {preview.changed.map((key) => (
+                <li key={key} className={list.row}>
+                  <Label variant="accent">변경</Label> <code className={table.key}>{key}</code>
+                </li>
+              ))}
+              {preview.candidates.map((key) => (
+                <li key={key} className={list.row}>
+                  <Checkbox
+                    aria-label={`${key} 지우기`}
+                    checked={removing.includes(key)}
+                    onChange={(event) =>
+                      setRemoving((current) =>
+                        event.target.checked
+                          ? [...current, key]
+                          : current.filter((other) => other !== key),
+                      )
+                    }
+                  />
+                  <Label variant="danger">삭제 후보</Label> <code className={table.key}>{key}</code>
+                </li>
+              ))}
+              {preview.added.length + preview.changed.length + preview.candidates.length === 0 && (
+                <li className={list.empty}>지금 값과 같습니다.</li>
+              )}
+            </ul>
+          </section>
+        )}
         <div>
-          <Button leadingVisual={PasteIcon} disabled={!text.trim()} onClick={apply}>
+          <Button leadingVisual={PasteIcon} disabled={!ready} onClick={apply}>
             붙여넣은 값 적용
           </Button>
         </div>

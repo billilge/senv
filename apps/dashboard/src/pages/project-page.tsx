@@ -1,5 +1,6 @@
 import {
   ChecklistIcon,
+  CopyIcon,
   HistoryIcon,
   PencilIcon,
   RepoIcon,
@@ -10,6 +11,7 @@ import { Button, Flash, PageHeader, Spinner, Stack, UnderlineNav } from '@primer
 import { SenvApiError } from '@senv/api-client';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
+import { CopyDialog } from '../project/copy-dialog';
 import { EnvironmentEditor } from '../project/environment-editor';
 import { KeySchemaPanel } from '../project/key-schema';
 import { Matrix } from '../project/matrix';
@@ -121,7 +123,11 @@ function ProjectValues({
   const results = useEnvironmentValues(project, envs);
   // 스키마를 못 받아도 값은 보여준다 (모든 값을 가린다)
   const schema = useKeySchema(project);
-  const [editing, setEditing] = useState<EnvironmentName | null>(null);
+  const [editing, setEditing] = useState<{
+    env: EnvironmentName;
+    initialChanges?: Record<string, string>;
+  } | null>(null);
+  const [copying, setCopying] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   if (results.some((result) => result.isPending)) return <Spinner />;
   if (results.some((result) => result.isError)) {
@@ -135,7 +141,7 @@ function ProjectValues({
   });
   const keys = new Set(envs.flatMap((env) => Object.keys(values[env]?.variables ?? {})));
   const exampleKey = [...keys].sort()[0] ?? 'KEY';
-  const editingValues = editing && values[editing];
+  const editingValues = editing && values[editing.env];
 
   return (
     <Stack gap="normal">
@@ -149,13 +155,16 @@ function ProjectValues({
       {notice && <Flash variant="success">{notice}</Flash>}
       {!editing && (
         <Stack direction="horizontal" gap="condensed" justify="end" wrap="wrap">
+          <Button leadingVisual={CopyIcon} onClick={() => setCopying(true)}>
+            환경 간 복사
+          </Button>
           {envs.map((env) => (
             <Button
               key={env}
               leadingVisual={PencilIcon}
               onClick={() => {
                 setNotice(null);
-                setEditing(env);
+                setEditing({ env });
               }}
             >
               {env} 편집
@@ -163,15 +172,28 @@ function ProjectValues({
           ))}
         </Stack>
       )}
+      {copying && (
+        <CopyDialog
+          envs={envs}
+          values={values}
+          onClose={() => setCopying(false)}
+          onApply={(target, changes) => {
+            setCopying(false);
+            setNotice(null);
+            setEditing({ env: target, initialChanges: changes });
+          }}
+        />
+      )}
       {editing && editingValues ? (
         <EnvironmentEditor
-          key={editing}
+          key={editing.env}
           project={project}
           values={editingValues}
+          initialChanges={editing.initialChanges}
           onCancel={() => setEditing(null)}
           onPublished={(version) => {
             setEditing(null);
-            setNotice(`게시했습니다: ${editing} v${version}`);
+            setNotice(`게시했습니다: ${editing.env} v${version}`);
           }}
         />
       ) : keys.size === 0 ? (

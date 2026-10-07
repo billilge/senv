@@ -181,4 +181,60 @@ describe('환경별 편집과 게시', () => {
     expect(screen.getByRole('button', { name: 'local 편집' })).toBeInTheDocument();
     expect(publishRequest(api)).toBeUndefined();
   });
+
+  it('.env를 붙여넣으면 추가·변경·삭제 후보를 나눠 보여주고, 고른 삭제 후보만 지운다', async () => {
+    const api = server().reply('POST', '/api/v1/projects/web/envs/local/versions', published());
+    const { user: actor } = await openEditor(api);
+
+    await actor.click(screen.getByRole('textbox', { name: '.env 붙여넣기' }));
+    await actor.paste('API_URL=https://pasted\nNEW_ONE=1\n');
+
+    const preview = screen.getByRole('region', { name: '붙여넣은 내용' });
+    expect(within(preview).getByText('NEW_ONE').closest('li')).toHaveTextContent('추가');
+    expect(within(preview).getByText('API_URL').closest('li')).toHaveTextContent('변경');
+    const deleteDebug = within(preview).getByRole('checkbox', { name: 'DEBUG 지우기' });
+    expect(deleteDebug).not.toBeChecked();
+    await actor.click(deleteDebug);
+    await actor.click(screen.getByRole('button', { name: '붙여넣은 값 적용' }));
+    await actor.click(screen.getByRole('button', { name: '변경 확인' }));
+    await actor.click(screen.getByRole('button', { name: '게시' }));
+
+    await screen.findByText(/게시했습니다/);
+    expect(publishRequest(api)?.body).toMatchObject({
+      changes: { set: { API_URL: 'https://pasted', NEW_ONE: '1' }, remove: ['DEBUG'] },
+    });
+  });
+});
+
+describe('환경 간 복사', () => {
+  it('고른 키의 값을 다른 환경의 편집에 담고, 확인한 뒤 그 환경에 게시한다', async () => {
+    const api = server().reply('POST', '/api/v1/projects/web/envs/production/versions', {
+      status: 201,
+      body: { version: 1, diff: { added: ['API_URL'], removed: [], changed: [], unchanged: [] } },
+    });
+    const { user: actor } = renderApp('/projects/web', api);
+
+    await actor.click(await screen.findByRole('button', { name: '환경 간 복사' }));
+    const dialog = screen.getByRole('dialog', { name: '환경 간 복사' });
+    await actor.selectOptions(within(dialog).getByRole('combobox', { name: '원본 환경' }), 'local');
+    await actor.selectOptions(
+      within(dialog).getByRole('combobox', { name: '대상 환경' }),
+      'production',
+    );
+    await actor.click(within(dialog).getByRole('checkbox', { name: 'API_URL' }));
+    expect(
+      within(dialog).getByText('API_URL', { selector: 'code' }).closest('li'),
+    ).toHaveTextContent('추가');
+    await actor.click(within(dialog).getByRole('button', { name: '편집에 담기' }));
+
+    expect(screen.getByRole('heading', { name: /production 편집/ })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'API_URL 값' })).toHaveValue('http://old');
+    await actor.click(screen.getByRole('button', { name: '변경 확인' }));
+    await actor.click(screen.getByRole('button', { name: '게시' }));
+
+    await screen.findByText(/게시했습니다.*production v1/);
+    expect(
+      api.requests.find((r) => r.method === 'POST' && r.path.includes('/production/'))?.body,
+    ).toEqual({ baseVersion: 0, changes: { set: { API_URL: 'http://old' } } });
+  });
 });
