@@ -29,7 +29,7 @@ import {
   LastAdminError,
   UserNotFoundError,
 } from '../users/users-service.js';
-import { RequestValidationError, toApiError } from './api-error.js';
+import { ApiProblem, RequestValidationError, toApiError } from './api-error.js';
 
 describe('toApiError', () => {
   it.each([
@@ -96,6 +96,19 @@ describe('toApiError', () => {
         message: '요청 형식이 올바르지 않습니다',
         details: { issues },
       },
+    });
+  });
+
+  it('ApiProblem은 담긴 상태·code·메시지·details를 그대로 쓴다', () => {
+    expect(
+      toApiError(new ApiProblem(400, 'slow_down', '너무 자주 물었습니다', { interval: 10 })),
+    ).toEqual({
+      status: 400,
+      body: { code: 'slow_down', message: '너무 자주 물었습니다', details: { interval: 10 } },
+    });
+    expect(toApiError(new ApiProblem(401, 'unauthorized', '로그인이 필요합니다'))).toEqual({
+      status: 401,
+      body: { code: 'unauthorized', message: '로그인이 필요합니다' },
     });
   });
 

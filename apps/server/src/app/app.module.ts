@@ -1,5 +1,7 @@
 import { type DynamicModule, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ApiTokenService } from '../auth/api-token-service.js';
+import { AuthController } from '../auth/auth.controller.js';
 import { AuthService } from '../auth/auth-service.js';
 import { DeviceAuthService } from '../auth/device-auth-service.js';
 import { GitHubClient } from '../auth/github-client.js';
@@ -8,6 +10,7 @@ import type { ServerConfig } from '../config/server-config.js';
 import { DeliveryService } from '../delivery/delivery-service.js';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { HealthController } from '../health/health.controller.js';
+import { AuthGuard } from '../http/auth.guard.js';
 import { ProjectsService } from '../projects/projects-service.js';
 import { PublishService } from '../publishing/publish-service.js';
 import { SnapshotService } from '../snapshots/snapshot-service.js';
@@ -27,8 +30,9 @@ export class AppModule {
   static register(deps: AppDependencies): DynamicModule {
     return {
       module: AppModule,
-      controllers: [HealthController],
+      controllers: [HealthController, AuthController],
       providers: [
+        { provide: APP_GUARD, useClass: AuthGuard },
         { provide: SERVER_CONFIG, useValue: deps.config },
         { provide: CLOCK, useValue: deps.now ?? (() => new Date()) },
         { provide: PrismaClient, useValue: deps.prisma },

@@ -49,6 +49,19 @@ export class RequestValidationError extends Error {
   }
 }
 
+/** 상황마다 code가 달라지는 HTTP 오류 (가드, 디바이스 폴링 상태 등) */
+export class ApiProblem extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+    readonly details?: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = 'ApiProblem';
+  }
+}
+
 // biome-ignore lint/suspicious/noExplicitAny: 여러 오류 클래스의 생성자를 한 표에 담는다
 type ErrorClass = new (...args: any[]) => Error;
 
@@ -131,6 +144,12 @@ const HTTP_CODES: Record<number, string> = {
  * 새지 않도록 일반 메시지만 돌려준다.
  */
 export function toApiError(error: unknown): ApiError {
+  if (error instanceof ApiProblem) {
+    const body: ApiErrorBody = { code: error.code, message: error.message };
+    if (error.details) body.details = error.details;
+    return { status: error.status, body };
+  }
+
   for (const rule of RULES) {
     if (error instanceof rule.type) {
       const body: ApiErrorBody = { code: rule.code, message: error.message };
