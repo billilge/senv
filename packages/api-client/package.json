@@ -1,0 +1,33 @@
+{
+  "name": "@senv/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "generate": "openapi-typescript ../../apps/server/openapi.json -o src/generated/schema.d.ts",
+    "build": "pnpm generate && tsup",
+    "test": "pnpm generate && vitest run",
+    "typecheck": "pnpm generate && tsc --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@senv/config": "workspace:*",
+    "@types/node": "^24.19.1",
+    "openapi-typescript": "7.13.0",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}
