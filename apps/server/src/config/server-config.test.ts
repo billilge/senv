@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { ConfigError, loadServerConfig } from './server-config.js';
+import { ConfigError, loadServerConfig, loadWorkerConfig } from './server-config.js';
 
 const KEK = randomBytes(32).toString('base64');
 
@@ -128,6 +128,32 @@ describe('loadServerConfig', () => {
       const text = `${(error as Error).message}\n${(error as ConfigError).problems.join('\n')}`;
       expect(text).not.toContain('db-password-123');
       expect(text).not.toContain('short-session-secret');
+    }
+  });
+});
+
+describe('loadWorkerConfig', () => {
+  it('worker는 DATABASE_URL만 받는다 (다른 비밀은 worker에 주지 않는다)', () => {
+    expect(
+      loadWorkerConfig({ DATABASE_URL: 'mysql://stream_env:pw@mysql:3306/stream_env' }),
+    ).toEqual({
+      databaseUrl: 'mysql://stream_env:pw@mysql:3306/stream_env',
+    });
+  });
+
+  it.each([
+    [{}, 'DATABASE_URL: 값이 없습니다'],
+    [
+      { DATABASE_URL: 'postgres://u:pw@db/app' },
+      'DATABASE_URL: mysql:// 로 시작하는 주소여야 합니다',
+    ],
+  ])('DATABASE_URL이 틀리면 값 없이 이유만 알린다 (%o)', (env, problem) => {
+    expect(() => loadWorkerConfig(env)).toThrow(ConfigError);
+    try {
+      loadWorkerConfig(env);
+    } catch (error) {
+      expect((error as ConfigError).problems).toEqual([problem]);
+      expect((error as ConfigError).message).not.toContain('pw@');
     }
   });
 });

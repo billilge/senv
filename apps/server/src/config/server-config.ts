@@ -39,6 +39,13 @@ const GITHUB_LOGIN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 
 const required = () => z.string().trim().min(1, { error: '값이 없습니다', abort: true });
 
+const databaseUrl = required().refine(
+  (value) => value.startsWith('mysql://') && URL.canParse(value),
+  {
+    error: 'mysql:// 로 시작하는 주소여야 합니다',
+  },
+);
+
 /** 오류 메시지는 모두 직접 정해서, zod가 입력 값을 메시지에 넣지 않게 한다 */
 const envSchema = z.object({
   PORT: z
@@ -50,9 +57,7 @@ const envSchema = z.object({
   APP_URL: required().refine(isAppUrl, {
     error: 'https 주소여야 합니다 (로컬 개발은 http://localhost 허용)',
   }),
-  DATABASE_URL: required().refine((value) => value.startsWith('mysql://') && URL.canParse(value), {
-    error: 'mysql:// 로 시작하는 주소여야 합니다',
-  }),
+  DATABASE_URL: databaseUrl,
   S3_ENDPOINT: required().refine(isHttpUrl, { error: 'http(s) 주소여야 합니다' }),
   S3_ACCESS_KEY_ID: required(),
   S3_SECRET_ACCESS_KEY: required(),
@@ -139,4 +144,17 @@ function isAppUrl(value: string): boolean {
   if (!URL.canParse(value)) return false;
   const url = new URL(value);
   return url.protocol === 'https:' || (url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname));
+}
+
+export interface WorkerConfig {
+  databaseUrl: string;
+}
+
+/** worker는 DB만 쓰므로 DATABASE_URL만 받는다. R2 키·KEK·OAuth 시크릿은 api에만 둔다 */
+export function loadWorkerConfig(env: Record<string, string | undefined>): WorkerConfig {
+  const parsed = databaseUrl.safeParse(env.DATABASE_URL ?? '');
+  if (!parsed.success) {
+    throw new ConfigError([`DATABASE_URL: ${parsed.error.issues[0]?.message}`]);
+  }
+  return { databaseUrl: parsed.data };
 }
