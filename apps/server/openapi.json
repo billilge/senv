@@ -905,6 +905,277 @@
         ]
       }
     },
+    "/api/v1/projects/{project}/schema": {
+      "get": {
+        "operationId": "KeySchemasController_get",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeySchemaList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "schema"
+        ]
+      }
+    },
+    "/api/v1/projects/{project}/schema/keys/{key}": {
+      "put": {
+        "operationId": "KeySchemasController_put",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "string",
+                      "url",
+                      "number",
+                      "boolean",
+                      "json"
+                    ]
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "secret",
+                      "public"
+                    ]
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "optionalIn": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "development",
+                        "production"
+                      ]
+                    }
+                  },
+                  "buildTime": {
+                    "type": "boolean"
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeySchema"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "schema"
+        ]
+      },
+      "delete": {
+        "operationId": "KeySchemasController_remove",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "지움"
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "schema"
+        ]
+      }
+    },
+    "/api/v1/projects/{project}/schema/public-prefixes": {
+      "put": {
+        "operationId": "KeySchemasController_setPublicPrefixes",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "publicPrefixes": {
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "publicPrefixes"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPrefixes"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "schema"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "operationId": "UsersController_list",
@@ -1497,6 +1768,98 @@
           "message",
           "createdAt",
           "author"
+        ],
+        "additionalProperties": false
+      },
+      "KeySchemaList": {
+        "type": "object",
+        "properties": {
+          "publicPrefixes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KeySchema"
+            }
+          }
+        },
+        "required": [
+          "publicPrefixes",
+          "keys"
+        ],
+        "additionalProperties": false
+      },
+      "KeySchema": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "url",
+              "number",
+              "boolean",
+              "json"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "secret",
+              "public"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "optionalIn": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "local",
+                "development",
+                "production"
+              ]
+            }
+          },
+          "buildTime": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "type",
+          "visibility",
+          "required",
+          "optionalIn",
+          "buildTime",
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "PublicPrefixes": {
+        "type": "object",
+        "properties": {
+          "publicPrefixes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "publicPrefixes"
         ],
         "additionalProperties": false
       },

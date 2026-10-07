@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkClientExposure, type VisibilityEntry } from './index';
+import { checkClientExposure, isValidPublicPrefix, type VisibilityEntry } from './index';
 
 describe('checkClientExposure', () => {
   const schema: VisibilityEntry[] = [
@@ -56,5 +56,18 @@ describe('checkClientExposure', () => {
       exposedSecrets: ['EXPO_PUBLIC_ADMIN_TOKEN', 'VITE_STRIPE_SECRET'],
       unregistered: ['EXPO_PUBLIC_NEW', 'VITE_ZZZ_NEW'],
     });
+  });
+});
+
+describe('isValidPublicPrefix', () => {
+  it.each(['VITE_', 'EXPO_PUBLIC_', 'NEXT_PUBLIC_', 'PUBLIC_'])(
+    '%s 는 공개 접두사로 쓸 수 있다',
+    (prefix) => {
+      expect(isValidPublicPrefix(prefix)).toBe(true);
+    },
+  );
+
+  it.each(['', 'VITE', 'vite_', '_VITE_', 'VITE-', 'A B_'])('%j 는 안 된다', (prefix) => {
+    expect(isValidPublicPrefix(prefix)).toBe(false);
   });
 });

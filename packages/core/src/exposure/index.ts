@@ -33,3 +33,10 @@ export function checkClientExposure(
 
   return result;
 }
+
+/** 대문자로 시작하고 밑줄로 끝나는 접두사 (예: `VITE_`, `EXPO_PUBLIC_`) */
+const PUBLIC_PREFIX = /^[A-Z][A-Z0-9_]*_$/;
+
+export function isValidPublicPrefix(prefix: string): boolean {
+  return PUBLIC_PREFIX.test(prefix);
+}

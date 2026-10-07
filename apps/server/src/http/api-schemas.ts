@@ -91,6 +91,26 @@ export const versionListSchema = z
   .object({ versions: z.array(versionInfoSchema) })
   .meta({ id: 'VersionList' });
 
+export const keySchemaSchema = z
+  .object({
+    key: z.string(),
+    type: z.enum(['string', 'url', 'number', 'boolean', 'json']),
+    visibility: z.enum(['secret', 'public']),
+    required: z.boolean(),
+    optionalIn: z.array(z.enum(ENVIRONMENT_NAMES)),
+    buildTime: z.boolean(),
+    description: z.string(),
+  })
+  .meta({ id: 'KeySchema' });
+
+export const keySchemaListSchema = z
+  .object({ publicPrefixes: z.array(z.string()), keys: z.array(keySchemaSchema) })
+  .meta({ id: 'KeySchemaList' });
+
+export const publicPrefixesSchema = z
+  .object({ publicPrefixes: z.array(z.string()) })
+  .meta({ id: 'PublicPrefixes' });
+
 export const tokenPairSchema = z
   .object({
     accessToken: z.string(),

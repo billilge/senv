@@ -15,6 +15,8 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import { HealthController } from '../health/health.controller.js';
 import { AuthGuard } from '../http/auth.guard.js';
 import { RATE_LIMITS } from '../http/rate-limit.js';
+import { KeySchemaService } from '../key-schemas/key-schema-service.js';
+import { KeySchemasController } from '../key-schemas/key-schemas.controller.js';
 import { ProjectsController } from '../projects/projects.controller.js';
 import { ProjectsService } from '../projects/projects-service.js';
 import { PublishService } from '../publishing/publish-service.js';
@@ -49,6 +51,7 @@ export class AppModule {
         AuthController,
         WebAuthController,
         ProjectsController,
+        KeySchemasController,
         UsersController,
       ],
       providers: [
@@ -74,6 +77,11 @@ export class AppModule {
           provide: 'SHARED_PROJECT_READY',
           useFactory: (projects: ProjectsService) => projects.ensureSharedProject(),
           inject: [ProjectsService],
+        },
+        {
+          provide: KeySchemaService,
+          useFactory: (prisma: PrismaClient, now: Clock) => new KeySchemaService(prisma, now),
+          inject: [PrismaClient, CLOCK],
         },
         {
           provide: PublishService,

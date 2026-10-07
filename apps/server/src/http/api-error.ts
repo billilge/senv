@@ -11,6 +11,11 @@ import {
 import { GitHubAuthError, GitHubUnavailableError } from '../auth/github-client.js';
 import { BrokenReferenceError } from '../delivery/delivery-service.js';
 import {
+  InvalidKeyNameError,
+  InvalidPublicPrefixError,
+  KeySchemaNotFoundError,
+} from '../key-schemas/key-schema-service.js';
+import {
   InvalidProjectNameError,
   ProjectNameTakenError,
   ProjectNotFoundError,
@@ -96,6 +101,9 @@ const RULES: Rule[] = [
   },
   { type: NoChangesError, status: 422, code: 'no_changes' },
   { type: VersionNotFoundError, status: 404, code: 'version_not_found' },
+  { type: InvalidKeyNameError, status: 422, code: 'invalid_key_name' },
+  { type: KeySchemaNotFoundError, status: 404, code: 'key_schema_not_found' },
+  { type: InvalidPublicPrefixError, status: 422, code: 'invalid_public_prefix' },
   {
     type: PublishValidationError,
     status: 422,
