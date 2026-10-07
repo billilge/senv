@@ -228,7 +228,7 @@ flowchart LR
 | 공유 패키지 빌드 | tsup (ESM) | 서버(NestJS 12)·대시보드·CLI가 모두 ESM이다 |
 | 서버 빌드 | `tsc` (ESM, `nodenext`) | Nest CLI 없이 빌드한다. Nest CLI 명령(generate 등)은 Node 24.15 이상이 필요하다 |
 | 테스트 | Vitest(+ unplugin-swc), Testcontainers(MySQL), supertest, Testing Library, Playwright | 단위, DB 통합, API E2E, 대시보드 화면, 브라우저 E2E. Nest의 데코레이터 메타데이터 때문에 서버 테스트는 SWC로 변환한다 |
-| Coolify 계약 테스트 | 실제 응답을 녹화한 픽스처 | Coolify 버전이 바뀔 때 어댑터 회귀를 잡는다 |
+| Coolify 계약 테스트 | Coolify API 응답 모양을 흉내 낸 가짜 서버 + `target-testkit` 계약 테스트 | 실제 Coolify에 붙지 않는다(결정 46). 운영 Coolify 버전을 확인하면 그 응답으로 가짜 서버를 맞춘다 |
 | 로컬 개발 | 대시보드는 `pnpm dev:mock`, 서버 테스트는 Testcontainers MySQL + 메모리 저장소 | R2·MinIO 없이 개발·테스트한다. 실제 R2 어댑터는 얇게 두고 자동 테스트하지 않는다 |
 | 린트·포맷 | Biome | 린트와 포맷을 한 도구로 처리한다. 서버에서는 `useImportType` 규칙을 끈다. Nest DI가 런타임 타입 메타데이터를 쓰기 때문이다 |
 | CI | GitHub Actions | 테스트, CLI를 GitHub Packages로 릴리즈 |
@@ -1016,7 +1016,8 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 - [ ] 기존 MySQL의 예약 백업에 `stream_env`를 넣을 수 있는지
 - [ ] `worker`가 Coolify API를 부를 내부 주소
 - [ ] DNS에 Cloudflare 프록시를 켤지. 켜면 Traefik 뒤에서 클라이언트 IP가 맞게 잡히는지(`TRUST_PROXY`) 확인한다 (속도 제한)
-- [ ] 운영 중인 Coolify 버전과 env API 필드
+- [ ] 운영 중인 Coolify 버전과 env API 필드 (결정 51의 필드 이름과 같은지)
+- [ ] Coolify `Keys & Tokens > API tokens`에서 이 시스템용 API 토큰 발급 (배포 대상 연결에 쓴다)
 - [ ] R2 버킷 `stream-env`, `stream-env-backups`와 버킷 한정 API 토큰 생성
 - [ ] KEK 생성, 관리자 2명이 서버 밖에 따로 보관
 
@@ -1024,52 +1025,49 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 
 ## 15. 구현 현황
 
-기준: 2026-10-08, 브랜치 `feat/m1-core`, 커밋 70개 (아직 push하지 않음). 모든 커밋은 `pnpm verify`(Biome, 타입 검사, 빌드, 테스트)를 통과한 뒤에 만들었다.
+기준: 2026-10-08, 브랜치 `feat/m1-core`, 커밋 95개 (아직 push하지 않음). 모든 커밋은 `pnpm verify`(Biome, 타입 검사, 빌드, 테스트)를 통과한 뒤에 만들었다. M1 범위(결정 39·46으로 늘어난 범위 포함)의 구현은 모두 끝났고, 남은 것은 운영 준비다.
 
 ### 15.1 테스트
 
 | 패키지 | 테스트 수 | 범위 |
 | --- | --- | --- |
-| `packages/core` | 142 | dotenv 읽기·쓰기, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙 |
-| `apps/server` | 288 | 단위 + Testcontainers MySQL 통합: 암호화, 게시, 인증, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, worker |
-| `apps/cli` | 87 | 명령별 동작 (가짜 API) |
+| `packages/core` | 172 | dotenv, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙, 버전 조사, 배포 대상 계획·반영 후 동작 |
+| `apps/server` | 374 | 단위 + Testcontainers MySQL 통합: 암호화, 게시·버전 기록·되돌리기, 키 스키마, 목록 요약, 인증·역할 미리 지정, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, 배포 대상 연결·매핑·동기화·드리프트·가져오기, 작업 큐, worker |
+| `apps/cli` | 112 | 명령별 동작 (가짜 API): login·init·pull·run·list·get·status·diff·set·push·export·doctor, 노출 검사 |
 | `packages/api-client` | 9 | 클라이언트 생성, 오류 변환 |
-| `apps/dashboard` | 58 | Testing Library 화면 흐름, 목업 서버 |
-| `e2e` | 1 | 실제 서버 + CLI 전체 흐름 (login → whoami → init → pull → run → logout) |
-| 합계 | 585 | |
+| `packages/target-testkit` | 9 | 계약 테스트를 메모리 제공자에 적용 |
+| `packages/target-coolify` | 12 | 계약 테스트와 Coolify API 대응 (가짜 Coolify 서버) |
+| `apps/dashboard` | 96 | Testing Library 화면 흐름, 목업 서버 |
+| `e2e` (Vitest) | 1 | 실제 서버 + CLI 전체 흐름 (login → whoami → init → pull → run → logout) |
+| `e2e` (Playwright) | 1 | 로컬 Chrome으로 프로젝트 만들기 → 게시 → 버전 기록 → 배포 대상 연결 → 매핑 → 동기화 (`pnpm test:browser`) |
+| 합계 | 786 | |
 
-R2(S3) 어댑터와 실제 GitHub HTTP 클라이언트는 자동 테스트하지 않는다. 메모리 저장소와 가짜 GitHub 클라이언트로 서비스를 테스트한다.
+R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 테스트하지 않는다. 메모리 저장소, 가짜 GitHub, 가짜 Coolify 서버·메모리 제공자로 대신한다.
 
 ### 15.2 M1에서 끝난 것
 
 | 영역 | 내용 |
 | --- | --- |
 | 모노레포 | pnpm + Turborepo, Biome, `pnpm verify`, Prisma 코드 생성을 turbo `generate` 작업으로 분리 |
-| core | dotenv 파서·출력기, 키 이름 검증, `${shared.KEY}` 참조 해석, diff·변경 집합(`applyChangeSet`, `createChangeSet`), 이름 규칙 |
-| 서버: 저장·암호화 | 봉투 암호화(스냅샷마다 새 DEK, KEK로 감쌈, 저장 위치를 AAD로 묶음), KEK 교체용 다시 감싸기, R2 스냅샷 저장소 |
-| 서버: 값 | 프로젝트·환경(세 개 고정)·공유 그룹, 게시(기준 버전으로 충돌 검사, 키·참조 검증, 참조 중인 공유 키 삭제 막기, 스냅샷과 버전 포인터를 같은 트랜잭션에서), 공유 참조를 풀어서 전달 |
-| 서버: 인증 | GitHub OAuth(org 활성 멤버만), 첫 관리자 지정, 승인 대기, 대시보드 세션(7일, 쓸 때 연장), CLI 디바이스 로그인(RFC 8628), access·refresh 토큰(회전, 재사용 감지 시 전체 폐기), CSRF Origin 검사, 속도 제한 |
-| 서버: 그 밖 | 사용자 관리 API, OpenAPI 문서 생성, `{ code, message, details }` 오류 형식, `/healthz`, 대시보드 정적 제공, worker(1시간마다 만료 기록 정리) |
-| CLI | `login`·`logout`·`whoami`·`init`·`pull`·`run`·`list`·`get`, OS 키체인(없으면 권한 600 파일), 토큰 자동 갱신(프로세스 간 파일 잠금), `.gitignore` 등록 확인 |
-| 대시보드 | 로그인, 승인 대기, CLI 로그인 승인, 프로젝트 목록·만들기, 키 × 환경 매트릭스(값 가림, 30초 보기, 누락, 같은 값 표시), 환경별 편집·게시(`.env` 붙여넣기, 409 충돌이면 최신 값에 내 변경을 다시 얹기, 422 문제 표시), 사용자 관리, 다크 모드 GitHub 스타일, 목업 모드 |
+| core | dotenv 파서·출력기, 키 이름 검증, `${shared.KEY}` 참조 해석, diff·변경 집합, 이름 규칙, 키 스키마 검증·노출 검사, 배포 대상 인터페이스·동기화 계획 |
+| 서버: 값 | 프로젝트·환경·공유 그룹, 게시(충돌 검사, 키·참조·스키마 검증), 버전 기록·지난 버전·되돌리기, 공유 참조를 풀어서 전달(노출 검사 결과 포함), 키 스키마·공개 접두사, 목록 요약 |
+| 서버: 인증 | GitHub OAuth(org 활성 멤버만), 첫 관리자, 승인 대기, 역할 미리 지정, 대시보드 세션, CLI 디바이스 로그인, access·refresh 토큰(회전, 재사용 감지), CSRF Origin 검사, 속도 제한 |
+| 서버: 배포 대상 | 제공자 레지스트리, 연결(암호화 저장), 매핑, 동기화 엔진(계획·반영·반영 후 동작·기록), 게시 시 작업 큐 등록, worker 처리·재시도, 드리프트 감지, 원격 값 가져오기 |
+| 서버: 그 밖 | 사용자 관리 API, OpenAPI 문서, 오류 형식, `/healthz`, 대시보드 정적 제공, worker(만료 기록 정리·동기화·드리프트), Dockerfile·docker-compose |
+| 제공자 | `target-testkit`(계약 테스트, 메모리 제공자), `target-coolify`(Coolify v4 API) |
+| CLI | login·logout·whoami·init·pull·run·list·get·status·diff·set·push·export·doctor, 키체인, 토큰 자동 갱신, 노출 검사 |
+| 대시보드 | 로그인, 승인 대기, CLI 로그인 승인, 프로젝트 목록(요약)·만들기, 매트릭스(public 값·필수 누락), 환경별 편집·게시(붙여넣기 삭제 후보, 환경 간 복사), 버전 기록·비교·되돌리기, 키 스키마, 배포(매핑·동기화·기록·드리프트·가져오기), 배포 대상 연결, 사용자 관리·역할 미리 지정, 다크 모드 GitHub 스타일, 목업 모드 |
+| 검사·배포 | GitHub Actions CI(검사, 브라우저 E2E, 이미지 검사), CLI 배포 워크플로 |
 
 ### 15.3 M1에서 남은 것
 
-결정 39로 M1 범위가 늘었다. 아래 순서로 진행한다.
+구현은 끝났다(결정 39·46으로 늘어난 범위 포함). 아래는 직접 확인하거나 담당자가 할 일이다.
 
-| # | 작업 | 상태 |
-| --- | --- | --- |
-| 1 | Dockerfile·`docker-compose.yml`(api, worker), api 시작 시 `prisma migrate deploy` (`pnpm smoke:docker`로 확인) | 완료 |
-| 2 | 버전 기록·비교·롤백 (서버 API, 대시보드 화면) | 완료 |
-| 3 | 키 스키마·검증: 타입·필수·secret/public·설명, 게시 때 검사, 클라이언트 노출 검사 | 완료 |
-| 4 | 프로젝트 목록 요약: 환경별 최근 게시, 누락 키 수 | 완료 |
-| 5 | 역할 미리 지정: GitHub 사용자명으로 첫 로그인 전에 역할 지정 | 완료 |
-| 6 | 환경 간 복사, `.env` 붙여넣기의 삭제 후보 표시 | 완료 |
-| 7 | CLI `status`·`diff`·`set`·`push`·`export`·`doctor` | 완료 |
-| 8 | 배포 대상 연동 (결정 46): core 인터페이스·계획 계산, `target-testkit`, `target-coolify`, 연결·매핑, `jobs` 큐와 worker 동기화, 재시작·재배포, 동기화 기록, diff 미리보기, 초기 가져오기, 드리프트 감지, 대시보드 화면 | 완료 (실제 Coolify 버전 확인은 14.1) |
-| 9 | 브라우저 E2E (Playwright, 결정 34·57) | 완료 (`pnpm test:browser`) |
-| 10 | GitHub Actions: 검사(CI), CLI를 GitHub Packages로 배포 | 완료 (push 후 첫 실행에서 확인) |
-| - | 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관) | 담당자 작업 |
+| 작업 | 상태 |
+| --- | --- |
+| 첫 push 후 GitHub Actions(CI·이미지 검사) 결과 확인. 로컬의 `pnpm smoke:docker`는 Dockerfile을 처음 만들 때 통과했고, 배포 대상 연동 이후에는 외부 접속(이미지 빌드 시 npm 내려받기)을 피하려고 다시 돌리지 않았다 | 확인 필요 |
+| 운영 중인 Coolify 버전에서 env API 필드 이름(`is_buildtime` 등)과 재배포 API가 결정 51과 같은지 확인 (14.1) | 확인 필요 |
+| 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관, Coolify API 토큰) | 담당자 작업 |
 
 ### 15.4 PRD 원안과 다르게 구현한 것
 
@@ -1086,6 +1084,10 @@ R2(S3) 어댑터와 실제 GitHub HTTP 클라이언트는 자동 테스트하지
 | 로컬 개발 | `docker-compose.dev.yml` (MySQL, MinIO) | Testcontainers MySQL + 메모리 저장소, 대시보드 목업 모드 | 저장소 I/O는 자동 테스트하지 않기로 했다 |
 | 테마 | 라이트·다크 | 다크 전용 | 결정 35 |
 | 이미지 빌드 | `turbo prune server` | `turbo prune @senv/server @senv/dashboard` | 대시보드 빌드도 같은 이미지에 넣는다 |
+| worker 설정 | KEK·R2·OAuth 시크릿 등 api와 같은 값 | DB·R2·KEK만 (`loadWorkerConfig`) | OAuth 시크릿과 세션 비밀은 worker에 필요 없다 (결정 33) |
+| Coolify 재배포 API | `POST /deploy?uuid=` | `GET /deploy?uuid=` | Coolify API 문서의 메서드를 따른다 (결정 51) |
+| Coolify 계약 테스트 | 실제 응답 녹화 | 가짜 Coolify 서버 | 실제 Coolify에 붙지 않는다 (결정 46) |
+| 테스트 MySQL 이미지 | `mysql:8.4` | `docker.io/library/mysql:8.4` | Docker Desktop이 짧은 이름을 가끔 못 찾아 testcontainers가 내려받으려다 멈췄다 |
 
 ---
 
