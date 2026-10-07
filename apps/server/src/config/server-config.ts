@@ -157,13 +157,55 @@ function isAppUrl(value: string): boolean {
 
 export interface WorkerConfig {
   databaseUrl: string;
+  storage: ServerConfig['storage'];
+  keyring: Keyring;
 }
 
-/** worker는 DB만 쓰므로 DATABASE_URL만 받는다. R2 키·KEK·OAuth 시크릿은 api에만 둔다 */
+const workerSchema = envSchema.pick({
+  DATABASE_URL: true,
+  S3_ENDPOINT: true,
+  S3_ACCESS_KEY_ID: true,
+  S3_SECRET_ACCESS_KEY: true,
+  S3_BUCKET: true,
+});
+
+/**
+ * worker는 배포 대상 동기화(값을 풀어 인프라에 쓰기)와 만료 기록 정리를 한다.
+ * 그래서 DB·R2·KEK를 받고, GitHub OAuth 시크릿과 세션 비밀은 받지 않는다 (결정 33).
+ */
 export function loadWorkerConfig(env: Record<string, string | undefined>): WorkerConfig {
-  const parsed = databaseUrl.safeParse(env.DATABASE_URL ?? '');
+  const problems: string[] = [];
+  const input = Object.fromEntries(
+    Object.keys(workerSchema.shape).map((key) => [key, env[key] ?? '']),
+  );
+  const parsed = workerSchema.safeParse(input);
   if (!parsed.success) {
-    throw new ConfigError([`DATABASE_URL: ${parsed.error.issues[0]?.message}`]);
+    const reported = new Set<string>();
+    for (const issue of parsed.error.issues) {
+      const name = String(issue.path[0]);
+      if (reported.has(name)) continue;
+      reported.add(name);
+      problems.push(`${name}: ${issue.message}`);
+    }
   }
-  return { databaseUrl: parsed.data };
+  let keyring: Keyring | undefined;
+  try {
+    keyring = loadKeyring(env);
+  } catch (error) {
+    if (!(error instanceof KeyringConfigError)) throw error;
+    problems.push(error.message);
+  }
+  if (!parsed.success || !keyring || problems.length > 0) throw new ConfigError(problems);
+
+  const vars = parsed.data;
+  return {
+    databaseUrl: vars.DATABASE_URL,
+    storage: {
+      endpoint: vars.S3_ENDPOINT,
+      accessKeyId: vars.S3_ACCESS_KEY_ID,
+      secretAccessKey: vars.S3_SECRET_ACCESS_KEY,
+      bucket: vars.S3_BUCKET,
+    },
+    keyring,
+  };
 }

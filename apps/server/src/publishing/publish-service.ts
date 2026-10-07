@@ -17,7 +17,7 @@ import {
   validateEnvironment,
   versionRo,
 } from '@senv/core';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 import { ProjectNotFoundError } from '../projects/projects-service.js';
 import type { SnapshotService } from '../snapshots/snapshot-service.js';
 import type { SnapshotRef } from '../storage/snapshot-store.js';
@@ -76,6 +76,18 @@ export interface VersionInfo {
   author: { id: string; login: string | null };
 }
 
+export interface PublishEvent {
+  project: string;
+  kind: 'app' | 'shared';
+  env: EnvironmentName;
+  version: number;
+}
+
+/** 게시와 같은 트랜잭션에서 할 일 (배포 대상 동기화 작업 등록) */
+export interface PublishListener {
+  onPublished(tx: Prisma.TransactionClient, event: PublishEvent): Promise<void>;
+}
+
 /** 프로젝트 목록 요약 (PRD 7.1) */
 export interface ProjectSummary {
   environments: { env: EnvironmentName; version: number; publishedAt: Date | null }[];
@@ -131,6 +143,7 @@ export class PublishService {
     private readonly prisma: PrismaClient,
     private readonly snapshots: SnapshotService,
     private readonly now: () => Date = () => new Date(),
+    private readonly listener?: PublishListener,
   ) {}
 
   /**
@@ -184,6 +197,12 @@ export class PublishService {
           await tx.environment.update({
             where: { id: target.environmentId },
             data: { currentVersion: version },
+          });
+          await this.listener?.onPublished(tx, {
+            project: target.project,
+            kind: target.kind,
+            env: target.env,
+            version,
           });
           return { version, diff };
         },

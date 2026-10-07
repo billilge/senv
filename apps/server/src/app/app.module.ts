@@ -16,6 +16,7 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import { HealthController } from '../health/health.controller.js';
 import { AuthGuard } from '../http/auth.guard.js';
 import { RATE_LIMITS } from '../http/rate-limit.js';
+import { JobsService } from '../jobs/jobs-service.js';
 import { KeySchemaService } from '../key-schemas/key-schema-service.js';
 import { KeySchemasController } from '../key-schemas/key-schemas.controller.js';
 import { ProjectsController } from '../projects/projects.controller.js';
@@ -26,6 +27,7 @@ import { SnapshotStore } from '../storage/snapshot-store.js';
 import { ConnectionsService } from '../targets/connections-service.js';
 import { MappingsController } from '../targets/mappings.controller.js';
 import { MappingsService } from '../targets/mappings-service.js';
+import { SyncScheduler } from '../targets/sync-scheduler.js';
 import { SyncService } from '../targets/sync-service.js';
 import { TargetRegistry } from '../targets/target-registry.js';
 import { TargetsController } from '../targets/targets.controller.js';
@@ -145,10 +147,20 @@ export class AppModule {
           inject: [PrismaClient, CLOCK],
         },
         {
+          provide: JobsService,
+          useFactory: (prisma: PrismaClient, now: Clock) => new JobsService(prisma, now),
+          inject: [PrismaClient, CLOCK],
+        },
+        {
           provide: PublishService,
-          useFactory: (prisma: PrismaClient, snapshots: SnapshotService, now: Clock) =>
-            new PublishService(prisma, snapshots, now),
-          inject: [PrismaClient, SnapshotService, CLOCK],
+          // 게시하면 같은 트랜잭션에서 자동 매핑의 동기화 작업을 등록한다 (결정 53)
+          useFactory: (
+            prisma: PrismaClient,
+            snapshots: SnapshotService,
+            now: Clock,
+            jobs: JobsService,
+          ) => new PublishService(prisma, snapshots, now, new SyncScheduler(jobs)),
+          inject: [PrismaClient, SnapshotService, CLOCK, JobsService],
         },
         {
           provide: DeliveryService,

@@ -1063,7 +1063,7 @@ R2(S3) 어댑터와 실제 GitHub HTTP 클라이언트는 자동 테스트하지
 | 5 | 역할 미리 지정: GitHub 사용자명으로 첫 로그인 전에 역할 지정 | 완료 |
 | 6 | 환경 간 복사, `.env` 붙여넣기의 삭제 후보 표시 | 완료 |
 | 7 | CLI `status`·`diff`·`set`·`push`·`export`·`doctor` | 완료 |
-| 8 | 배포 대상 연동 (결정 46): core 인터페이스·계획 계산, `target-testkit`, `target-coolify`, 연결·매핑, `jobs` 큐와 worker 동기화, 재시작·재배포, 동기화 기록, diff 미리보기, 초기 가져오기, 드리프트 감지, 대시보드 화면 | 남음 |
+| 8 | 배포 대상 연동 (결정 46): core 인터페이스·계획 계산, `target-testkit`, `target-coolify`, 연결·매핑, `jobs` 큐와 worker 동기화, 재시작·재배포, 동기화 기록, diff 미리보기, 초기 가져오기, 드리프트 감지 (여기까지 서버 완료), 대시보드 화면 | 진행 중 |
 | 9 | 브라우저 E2E (Playwright, 결정 34) | 남음 |
 | 10 | GitHub Actions: 검사(CI), CLI를 GitHub Packages로 배포 | 남음 |
 | - | 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관) | 담당자 작업 |

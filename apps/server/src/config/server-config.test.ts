@@ -142,26 +142,46 @@ describe('loadServerConfig', () => {
 });
 
 describe('loadWorkerConfig', () => {
-  it('worker는 DATABASE_URL만 받는다 (다른 비밀은 worker에 주지 않는다)', () => {
-    expect(
-      loadWorkerConfig({ DATABASE_URL: 'mysql://stream_env:pw@mysql:3306/stream_env' }),
-    ).toEqual({
-      databaseUrl: 'mysql://stream_env:pw@mysql:3306/stream_env',
-    });
+  const workerEnv = (overrides: Record<string, string | undefined> = {}) => ({
+    DATABASE_URL: 'mysql://stream_env:pw@mysql:3306/stream_env',
+    S3_ENDPOINT: 'https://acc123.r2.cloudflarestorage.com',
+    S3_ACCESS_KEY_ID: 'access-key-id',
+    S3_SECRET_ACCESS_KEY: 'secret-access-key',
+    S3_BUCKET: 'stream-env',
+    SENV_KEK: KEK,
+    SENV_KEK_ID: 'kek-2026-10',
+    ...overrides,
   });
 
-  it.each([
-    [{}, 'DATABASE_URL: 값이 없습니다'],
-    [
-      { DATABASE_URL: 'postgres://u:pw@db/app' },
-      'DATABASE_URL: mysql:// 로 시작하는 주소여야 합니다',
-    ],
-  ])('DATABASE_URL이 틀리면 값 없이 이유만 알린다 (%o)', (env, problem) => {
+  it('worker는 DB·R2·KEK만 받는다 (OAuth 시크릿·세션 비밀은 api에만)', () => {
+    const config = loadWorkerConfig(workerEnv());
+    expect(config).toMatchObject({
+      databaseUrl: 'mysql://stream_env:pw@mysql:3306/stream_env',
+      storage: {
+        endpoint: 'https://acc123.r2.cloudflarestorage.com',
+        accessKeyId: 'access-key-id',
+        secretAccessKey: 'secret-access-key',
+        bucket: 'stream-env',
+      },
+    });
+    expect(config.keyring.currentKekId).toBe('kek-2026-10');
+    expect(Object.keys(config).sort()).toEqual(['databaseUrl', 'keyring', 'storage']);
+  });
+
+  it('빠지거나 틀린 값을 한 번에 알리고, 값은 메시지에 담지 않는다', () => {
+    const env = workerEnv({
+      DATABASE_URL: 'postgres://u:pw@db/app',
+      S3_BUCKET: undefined,
+      SENV_KEK: undefined,
+    });
     expect(() => loadWorkerConfig(env)).toThrow(ConfigError);
     try {
       loadWorkerConfig(env);
     } catch (error) {
-      expect((error as ConfigError).problems).toEqual([problem]);
+      const problems = (error as ConfigError).problems;
+      expect(problems).toContain('DATABASE_URL: mysql:// 로 시작하는 주소여야 합니다');
+      expect(problems).toContain('S3_BUCKET: 값이 없습니다');
+      expect(problems.some((problem) => problem.startsWith('SENV_KEK'))).toBe(true);
       expect((error as ConfigError).message).not.toContain('pw@');
     }
   });
