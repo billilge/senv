@@ -42,6 +42,19 @@ export const versionKey = (project: string, env: string, version: number) =>
   ['project', project, 'env', env, 'versions', version] as const;
 
 export type VersionInfo = ApiSchemas['VersionInfo'];
+export type KeySchema = ApiSchemas['KeySchema'];
+
+export const schemaKey = (project: string) => ['project', project, 'schema'] as const;
+
+/** 키 스키마와 공개 접두사 (PRD 5.2, 6.3) */
+export function useKeySchema(project: string) {
+  const api = useApi();
+  return useQuery({
+    queryKey: schemaKey(project),
+    queryFn: () =>
+      unwrap(api.GET('/api/v1/projects/{project}/schema', { params: { path: { project } } })),
+  });
+}
 
 export function useVersions(project: string, env: string) {
   const api = useApi();

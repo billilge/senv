@@ -1,20 +1,29 @@
-import { HistoryIcon, PencilIcon, RepoIcon, StackIcon, TableIcon } from '@primer/octicons-react';
+import {
+  ChecklistIcon,
+  HistoryIcon,
+  PencilIcon,
+  RepoIcon,
+  StackIcon,
+  TableIcon,
+} from '@primer/octicons-react';
 import { Button, Flash, PageHeader, Spinner, Stack, UnderlineNav } from '@primer/react';
 import { SenvApiError } from '@senv/api-client';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { EnvironmentEditor } from '../project/environment-editor';
+import { KeySchemaPanel } from '../project/key-schema';
 import { Matrix } from '../project/matrix';
 import {
   type EnvironmentName,
   type EnvironmentValues,
   useEnvironmentValues,
+  useKeySchema,
   useProject,
 } from '../project/queries';
 import { VersionHistory } from '../project/version-history';
 import list from '../ui/list-box.module.css';
 
-export type ProjectTab = 'values' | 'history';
+export type ProjectTab = 'values' | 'history' | 'schema';
 
 export function ProjectPage({
   project,
@@ -69,9 +78,19 @@ export function ProjectPage({
         >
           버전 기록
         </UnderlineNav.Item>
+        <UnderlineNav.Item
+          as={Link}
+          to={`/projects/${project}/schema`}
+          icon={ChecklistIcon}
+          aria-current={tab === 'schema' ? 'page' : undefined}
+        >
+          키 스키마
+        </UnderlineNav.Item>
       </UnderlineNav>
       {tab === 'values' ? (
         <ProjectValues project={project} kind={kind} envs={envs} />
+      ) : tab === 'schema' ? (
+        <KeySchemaPanel project={project} envs={envs} />
       ) : (
         <VersionHistory
           project={project}
@@ -100,6 +119,8 @@ function ProjectValues({
   envs: EnvironmentName[];
 }) {
   const results = useEnvironmentValues(project, envs);
+  // 스키마를 못 받아도 값은 보여준다 (모든 값을 가린다)
+  const schema = useKeySchema(project);
   const [editing, setEditing] = useState<EnvironmentName | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   if (results.some((result) => result.isPending)) return <Spinner />;
@@ -158,7 +179,7 @@ function ProjectValues({
           <p className={list.empty}>아직 값이 없습니다. 위의 편집 버튼으로 값을 추가하세요.</p>
         </div>
       ) : (
-        <Matrix envs={envs} values={values} />
+        <Matrix envs={envs} values={values} schema={schema.data?.keys} />
       )}
     </Stack>
   );

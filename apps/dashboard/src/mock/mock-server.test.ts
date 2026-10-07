@@ -189,4 +189,52 @@ describe('목업 서버', () => {
       .versions;
     expect(rollback.message).toMatch(/로 되돌림$/);
   });
+
+  it('키 스키마를 주고, 멤버는 키를 고치고 지우며 공개 접두사는 관리자만 바꾼다', async () => {
+    const { call } = setup({ persona: 'member' });
+    const schema = (await call('GET', '/api/v1/projects/web/schema')).body;
+    expect(schema.publicPrefixes).toEqual(['VITE_']);
+
+    expect(
+      (await call('PUT', '/api/v1/projects/web/schema/keys/NEW_KEY', { type: 'number' })).body,
+    ).toMatchObject({ key: 'NEW_KEY', type: 'number', visibility: 'secret', required: false });
+    expect((await call('DELETE', '/api/v1/projects/web/schema/keys/NEW_KEY')).status).toBe(204);
+    expect((await call('PUT', '/api/v1/projects/web/schema/keys/bad-key', {})).body).toMatchObject({
+      code: 'invalid_key_name',
+    });
+    expect(
+      (await call('PUT', '/api/v1/projects/web/schema/public-prefixes', { publicPrefixes: [] }))
+        .status,
+    ).toBe(403);
+  });
+
+  it('게시할 때 키 스키마의 필수·타입을 검사한다', async () => {
+    const { call } = setup();
+    await call('PUT', '/api/v1/projects/app/schema/keys/EXPO_PUBLIC_API_URL', {
+      type: 'url',
+      required: true,
+    });
+    expect(
+      await call('POST', '/api/v1/projects/app/envs/local/versions', {
+        baseVersion: 0,
+        changes: { set: { OTHER: 'x' } },
+      }),
+    ).toMatchObject({
+      status: 422,
+      body: { details: { issues: [{ code: 'missing_required', key: 'EXPO_PUBLIC_API_URL' }] } },
+    });
+    expect(
+      await call('POST', '/api/v1/projects/app/envs/local/versions', {
+        baseVersion: 0,
+        changes: { set: { EXPO_PUBLIC_API_URL: 'not a url' } },
+      }),
+    ).toMatchObject({
+      status: 422,
+      body: {
+        details: {
+          issues: [{ code: 'invalid_type', key: 'EXPO_PUBLIC_API_URL', expected: 'url' }],
+        },
+      },
+    });
+  });
 });

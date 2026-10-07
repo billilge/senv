@@ -56,6 +56,14 @@ const projectHistoryRoute = createRoute({
     return <ProjectPage project={project} tab="history" env={env} />;
   },
 });
+const projectSchemaRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/projects/$project/schema',
+  component: function ProjectSchema() {
+    const { project } = projectSchemaRoute.useParams();
+    return <ProjectPage project={project} tab="schema" />;
+  },
+});
 const deviceRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/device',
@@ -75,7 +83,14 @@ const usersRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([projectsRoute, projectRoute, projectHistoryRoute, deviceRoute, usersRoute]),
+  appRoute.addChildren([
+    projectsRoute,
+    projectRoute,
+    projectHistoryRoute,
+    projectSchemaRoute,
+    deviceRoute,
+    usersRoute,
+  ]),
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

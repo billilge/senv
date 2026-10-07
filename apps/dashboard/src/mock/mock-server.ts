@@ -11,8 +11,10 @@ import {
   isEnvironmentName,
   isValidKeyName,
   isValidProjectName,
+  isValidPublicPrefix,
   resolveSharedReferences,
   SHARED_PROJECT_NAME,
+  validateEnvironment,
   versionRo,
 } from '@senv/core';
 
@@ -23,6 +25,12 @@ import {
 
 type User = ApiSchemas['User'];
 type Project = ApiSchemas['Project'];
+type KeySchema = ApiSchemas['KeySchema'];
+
+interface ProjectSchema {
+  publicPrefixes: string[];
+  keys: KeySchema[];
+}
 
 export type MockPersona = 'admin' | 'member' | 'pending' | 'signed-out';
 type SignedInPersona = Exclude<MockPersona, 'signed-out'>;
@@ -49,7 +57,20 @@ export interface MockState {
   users: User[];
   projects: Project[];
   values: Record<string, Record<EnvironmentName, Snapshot>>;
+  /** 키 스키마. 예전에 저장한 목업 데이터에는 없을 수 있다 */
+  schemas?: Record<string, ProjectSchema>;
 }
+
+const schemaKey = (key: string, fields: Partial<KeySchema> = {}): KeySchema => ({
+  key,
+  type: 'string',
+  visibility: 'secret',
+  required: false,
+  optionalIn: [],
+  buildTime: false,
+  description: '',
+  ...fields,
+});
 
 const PERSONA_USER: Record<SignedInPersona, string> = {
   admin: 'u-alice',
@@ -120,6 +141,34 @@ export function initialMockState(): MockState {
       project('server', 'Stream API'),
       project('web', 'Stream 웹'),
     ],
+    schemas: {
+      server: {
+        publicPrefixes: [],
+        keys: [
+          schemaKey('API_PORT', { type: 'number', required: true, description: 'HTTP 포트' }),
+          schemaKey('DATABASE_URL', {
+            type: 'url',
+            required: true,
+            description: 'MySQL 접속 주소',
+          }),
+          schemaKey('LOG_LEVEL', { description: 'debug, info, warn, error' }),
+          schemaKey('REDIS_URL', { type: 'url', required: true, optionalIn: ['production'] }),
+        ],
+      },
+      web: {
+        publicPrefixes: ['VITE_'],
+        keys: [
+          schemaKey('VITE_API_URL', {
+            type: 'url',
+            visibility: 'public',
+            required: true,
+            buildTime: true,
+            description: 'API 주소',
+          }),
+        ],
+      },
+      app: { publicPrefixes: ['EXPO_PUBLIC_'], keys: [] },
+    },
     values: {
       shared: {
         local: snap(1, {
@@ -298,6 +347,14 @@ export class MockServer {
         : problem(404, 'project_not_found', `프로젝트가 없습니다: ${single[1]}`);
     }
 
+    const schema = path.match(
+      /^\/api\/v1\/projects\/([^/]+)\/schema(?:\/(keys|public-prefixes)(?:\/([^/]+))?)?$/,
+    );
+    if (schema) {
+      const [, name = '', part, key] = schema;
+      return this.schema(me, method, name, part, key, body);
+    }
+
     if (path.startsWith('/api/v1/users')) return this.users(me, method, path, body);
 
     return problem(404, 'not_found', `목업에 없는 경로: ${method} ${path}`);
@@ -338,6 +395,71 @@ export class MockServer {
       );
     }
     return new Reply(200, { project: name, env, ...values[env] });
+  }
+
+  private schemaOf(name: string): ProjectSchema {
+    return this.state.schemas?.[name] ?? { publicPrefixes: [], keys: [] };
+  }
+
+  private schema(
+    me: User,
+    method: string,
+    name: string,
+    part: string | undefined,
+    key: string | undefined,
+    body: Record<string, unknown>,
+  ): Reply {
+    if (!this.state.projects.some((candidate) => candidate.name === name)) {
+      return problem(404, 'project_not_found', `프로젝트가 없습니다: ${name}`);
+    }
+    const current = this.schemaOf(name);
+    const save = (next: ProjectSchema) =>
+      this.update((state) => {
+        state.schemas = { ...state.schemas, [name]: next };
+      });
+
+    if (!part && method === 'GET') return new Reply(200, current);
+    if (part === 'public-prefixes' && method === 'PUT') {
+      if (me.role !== 'admin') return problem(403, 'admin_required', '관리자만 할 수 있습니다');
+      const prefixes = Array.isArray(body.publicPrefixes) ? body.publicPrefixes.map(String) : [];
+      const invalid = prefixes.find((prefix) => !isValidPublicPrefix(prefix));
+      if (invalid !== undefined) {
+        return problem(
+          422,
+          'invalid_public_prefix',
+          `공개 접두사는 대문자로 시작하고 밑줄로 끝나야 합니다 (예: VITE_): ${JSON.stringify(invalid)}`,
+        );
+      }
+      const publicPrefixes = [...new Set(prefixes)];
+      save({ ...current, publicPrefixes });
+      return new Reply(200, { publicPrefixes });
+    }
+    if (part === 'keys' && key && method === 'PUT') {
+      if (!isValidKeyName(key)) {
+        return problem(
+          422,
+          'invalid_key_name',
+          `키 이름은 대문자·숫자·밑줄만 쓸 수 있고 숫자로 시작할 수 없습니다: ${JSON.stringify(key)}`,
+        );
+      }
+      const entry = schemaKey(key, {
+        ...(body as Partial<KeySchema>),
+        description: typeof body.description === 'string' ? body.description.trim() : '',
+      });
+      const keys = [...current.keys.filter((other) => other.key !== key), entry].sort((a, b) =>
+        a.key.localeCompare(b.key),
+      );
+      save({ ...current, keys });
+      return new Reply(200, entry);
+    }
+    if (part === 'keys' && key && method === 'DELETE') {
+      if (!current.keys.some((other) => other.key === key)) {
+        return problem(404, 'key_schema_not_found', `키 스키마가 없습니다: ${key}`);
+      }
+      save({ ...current, keys: current.keys.filter((other) => other.key !== key) });
+      return new Reply(204);
+    }
+    return problem(404, 'not_found', `목업에 없는 경로: ${method} ${name}/schema`);
   }
 
   private versions(name: string, env: string): Reply {
@@ -410,6 +532,19 @@ export class MockServer {
     } else {
       const shared = this.state.values[SHARED_PROJECT_NAME]?.[env].variables ?? {};
       issues.push(...resolveSharedReferences(next, shared).issues);
+    }
+    const resolved =
+      name === SHARED_PROJECT_NAME
+        ? next
+        : resolveSharedReferences(
+            next,
+            this.state.values[SHARED_PROJECT_NAME]?.[env].variables ?? {},
+          ).values;
+    for (const issue of validateEnvironment(this.schemaOf(name).keys, resolved, env)) {
+      if (issue.code === 'missing_required') issues.push({ code: issue.code, key: issue.key });
+      if (issue.code === 'invalid_type') {
+        issues.push({ code: issue.code, key: issue.key, expected: issue.expected });
+      }
     }
     if (issues.length > 0) {
       return problem(422, 'publish_validation', `게시할 수 없습니다: 문제 ${issues.length}건`, {
