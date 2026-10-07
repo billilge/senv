@@ -19,8 +19,8 @@ const loginRoute = createRoute({
     error: typeof search.error === 'string' ? search.error : undefined,
   }),
   component: function Login() {
-    const { next } = loginRoute.useSearch();
-    return <LoginPage next={next} />;
+    const { next, error } = loginRoute.useSearch();
+    return <LoginPage next={next} error={error} />;
   },
 });
 
