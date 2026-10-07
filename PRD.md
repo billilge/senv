@@ -4,7 +4,7 @@
 | --- | --- |
 | 문서 상태 | v1.0 (결정사항 확정) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -161,13 +161,13 @@ flowchart LR
 | 영역 | 선택 | 고른 이유 |
 | --- | --- | --- |
 | 런타임 | Node.js 24 LTS | 장기 지원 버전. 대시보드·CLI와 언어를 맞춘다 |
-| 프레임워크 | NestJS (Express 어댑터) | 모듈·DI·Guard 구조가 권한 검사가 많은 이 서비스에 맞는다. Express는 Passport 등 생태계 호환이 가장 넓다 |
+| 프레임워크 | NestJS 12 (ESM, Express 어댑터) | 모듈·DI·Guard 구조가 권한 검사가 많은 이 서비스에 맞는다. Express는 Passport 등 생태계 호환이 가장 넓다 |
 | 실행 구성 | `main.ts`(HTTP), `worker.ts`(`NestFactory.createApplicationContext`) | 같은 코드와 이미지로 API와 워커를 나눠 띄운다 |
 | DB | 기존 MySQL 리소스 (MySQL 8.x), 전용 DB `stream_env` | 새 DB 리소스 없이 기존 운영·백업 체계를 쓴다 |
 | ORM·마이그레이션 | Prisma | 스키마 파일 하나로 타입과 마이그레이션을 관리한다. 행 잠금이 필요한 두 곳(게시, 작업 가져오기)만 raw SQL을 쓴다 |
 | 작업 큐 | MySQL `jobs` 테이블 + 폴링 워커 | Redis 없이 처리한다. `SELECT ... FOR UPDATE SKIP LOCKED`로 작업을 가져오고, 게시와 같은 트랜잭션에서 작업을 등록한다 (4.4) |
 | 예약 작업 | @nestjs/schedule | 드리프트 점검, 감사 로그 내보내기. MySQL `GET_LOCK`으로 중복 실행을 막는다 |
-| 입력 검증·DTO | Zod + nestjs-zod | `packages/core`의 Zod 스키마를 DTO로 그대로 써서, 서버·대시보드·CLI가 같은 검증 규칙을 공유한다 |
+| 입력 검증·DTO | Zod + NestJS 12의 Standard Schema 검증(`StandardSchemaValidationPipe`) | `packages/core`의 Zod 스키마를 라우트 검증에 그대로 써서, 서버·대시보드·CLI가 같은 검증 규칙을 공유한다. 별도 연동 패키지가 필요 없다 |
 | API 문서·클라이언트 | @nestjs/swagger → `openapi.json` → openapi-typescript + openapi-fetch | 서버가 내보낸 OpenAPI 문서에서 대시보드·CLI용 타입 안전 클라이언트를 생성한다 |
 | 인증 | @nestjs/passport + passport-github2 (GitHub OAuth만) + 자체 세션·토큰 | GitHub 로그인만 Passport에 맡긴다. org 멤버십 확인, 대시보드 세션, CLI 토큰, 서비스 토큰, 디바이스 인증(RFC 8628)은 직접 구현한다 |
 | 권한 검사 | Nest Guard + 커스텀 데코레이터 | 예: `@RequireEnvPermission('write')`로 프로젝트 × 환경 권한을 확인한다 |
@@ -224,8 +224,8 @@ flowchart LR
 | 영역 | 선택 | 고른 이유 |
 | --- | --- | --- |
 | 모노레포 | pnpm workspaces + Turborepo | 패키지 간 의존 관리와 빌드 캐시. NestJS의 자체 모노레포 모드는 쓰지 않는다. 대시보드와 CLI가 Nest 앱이 아니어서, 서버도 워크스페이스 앱 하나로 둔다 |
-| 공유 패키지 빌드 | tsup (CommonJS + ESM 동시 출력) | NestJS 서버는 CommonJS, 대시보드·CLI는 ESM이라 두 형식을 다 내보낸다 |
-| 서버 빌드 | Nest CLI + SWC 빌더 | 빌드 속도 |
+| 공유 패키지 빌드 | tsup (ESM) | 서버(NestJS 12)·대시보드·CLI가 모두 ESM이다 |
+| 서버 빌드 | `tsc` (ESM, `nodenext`) | Nest CLI 없이 빌드한다. Nest CLI 명령(generate 등)은 Node 24.15 이상이 필요하다 |
 | 테스트 | Vitest(+ unplugin-swc), Testcontainers(MySQL), supertest, Playwright | 단위, DB 통합, API E2E, 대시보드 E2E. Nest의 데코레이터 메타데이터 때문에 서버 테스트는 SWC로 변환한다 |
 | Coolify 계약 테스트 | 실제 응답을 녹화한 픽스처 | Coolify 버전이 바뀔 때 어댑터 회귀를 잡는다 |
 | 로컬 개발 | `docker-compose.dev.yml`: MySQL 8, MinIO(R2 대용) | R2 없이 S3 호환 저장소로 개발한다 |
@@ -936,7 +936,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | --- | --- | --- | --- |
 | 1 | 인프라 | Cloudflare는 R2만 쓰고, 나머지는 Coolify에서 자체 운영 | 4장 |
 | 2 | 서버 위치 | Stream 서비스와 같은 Coolify 서버. 그 서버가 뚫리면 production 값은 이미 컨테이너에서 노출되므로, 분리로 얻는 이득보다 운영 단순함을 택했다 | 4장 |
-| 3 | 서버 프레임워크 | NestJS, 모노레포(pnpm + Turborepo) | 4.2, 4.3 |
+| 3 | 서버 프레임워크 | NestJS 12 (ESM), 모노레포(pnpm + Turborepo) | 4.2, 4.3 |
 | 4 | DB | 기존 MySQL 8.x 리소스에 전용 DB `stream_env` | 4.4 |
 | 5 | 암호화 수준 | 서버 복호화(봉투 암호화). 종단 간 암호화는 하지 않는다 | 5.5 |
 | 6 | 로그인 | GitHub OAuth만. GitHub org 멤버만 로그인하고, org 밖 인원(외주 등)은 받지 않는다 | 9.2 |
