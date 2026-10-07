@@ -1,9 +1,11 @@
-import { Button, Spinner, Stack, Text } from '@primer/react';
+import { KeyIcon } from '@primer/octicons-react';
+import { ActionList, ActionMenu, Avatar, Spinner, Text } from '@primer/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { useApi } from '../api-context';
-import { useMe } from '../auth/use-me';
+import { type User, useMe } from '../auth/use-me';
 import { PendingPage } from '../pages/pending-page';
+import classes from './app-layout.module.css';
 
 /** 로그인이 필요한 영역. 로그인하지 않았으면 /login으로, 승인 대기면 안내만 보여준다 */
 export function AppLayout() {
@@ -18,18 +20,21 @@ export function AppLayout() {
     return <Navigate to="/login" search={{ next: location.href }} replace />;
   }
 
+  const active = me.data.status === 'active';
   return (
-    <Stack>
-      <TopBar login={me.data.login} isAdmin={me.data.role === 'admin'} />
-      <Stack padding="normal">{me.data.status === 'active' ? <Outlet /> : <PendingPage />}</Stack>
-    </Stack>
+    <>
+      <TopBar me={me.data} showNav={active} />
+      <main className={classes.main}>{active ? <Outlet /> : <PendingPage />}</main>
+    </>
   );
 }
 
-function TopBar({ login, isAdmin }: { login: string; isAdmin: boolean }) {
+/** GitHub처럼 어두운 상단 헤더: 앱 이름, 메뉴, 사용자 메뉴(로그아웃) */
+function TopBar({ me, showNav }: { me: User; showNav: boolean }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const logout = async () => {
     await api.POST('/api/v1/auth/logout');
@@ -38,15 +43,53 @@ function TopBar({ login, isAdmin }: { login: string; isAdmin: boolean }) {
   };
 
   return (
-    <Stack direction="horizontal" align="center" justify="space-between" padding="normal">
-      <Stack direction="horizontal" align="center">
-        <Link to="/">Stream Env Control</Link>
-        {isAdmin && <Link to="/admin/users">사용자 관리</Link>}
-      </Stack>
-      <Stack direction="horizontal" align="center">
-        <Text>{login}</Text>
-        <Button onClick={logout}>로그아웃</Button>
-      </Stack>
-    </Stack>
+    <header className={classes.header}>
+      <Link to="/" className={classes.brand}>
+        <KeyIcon size={20} />
+        Stream Env Control
+      </Link>
+      <nav className={classes.nav} aria-label="주 메뉴">
+        {showNav && (
+          <Link
+            to="/"
+            className={classes.navLink}
+            data-selected={pathname === '/' || pathname.startsWith('/projects')}
+          >
+            프로젝트
+          </Link>
+        )}
+        {showNav && me.role === 'admin' && (
+          <Link
+            to="/admin/users"
+            className={classes.navLink}
+            data-selected={pathname.startsWith('/admin')}
+          >
+            사용자 관리
+          </Link>
+        )}
+      </nav>
+      <ActionMenu>
+        <ActionMenu.Button
+          variant="invisible"
+          leadingVisual={
+            me.avatarUrl ? () => <Avatar src={me.avatarUrl ?? ''} alt="" /> : undefined
+          }
+        >
+          {me.login}
+        </ActionMenu.Button>
+        <ActionMenu.Overlay align="end">
+          <ActionList>
+            <ActionList.Group>
+              <ActionList.GroupHeading>
+                <Text>{me.name ?? me.login}</Text>
+              </ActionList.GroupHeading>
+              <ActionList.Item variant="danger" onSelect={logout}>
+                로그아웃
+              </ActionList.Item>
+            </ActionList.Group>
+          </ActionList>
+        </ActionMenu.Overlay>
+      </ActionMenu>
+    </header>
   );
 }

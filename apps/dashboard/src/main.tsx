@@ -1,4 +1,10 @@
-// 다크 모드만 지원한다 (GitHub 다크 테마)
+// Primer 디자인 토큰 (간격, 테두리, 글꼴). 색은 다크 모드만 지원한다 (GitHub 다크 테마)
+import '@primer/primitives/dist/css/base/size/size.css';
+import '@primer/primitives/dist/css/base/typography/typography.css';
+import '@primer/primitives/dist/css/functional/size/border.css';
+import '@primer/primitives/dist/css/functional/size/radius.css';
+import '@primer/primitives/dist/css/functional/size/size.css';
+import '@primer/primitives/dist/css/functional/typography/typography.css';
 import '@primer/primitives/dist/css/functional/themes/dark.css';
 import './global.css';
 import { createSenvClient, type SenvClient } from '@senv/api-client';
