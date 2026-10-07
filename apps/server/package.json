@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "generate": "prisma generate",
-    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
-    "test": "prisma generate && vitest run --passWithNoTests",
+    "test": "vitest run --passWithNoTests",
     "test:unit": "prisma generate && vitest run --project unit",
     "test:int": "prisma generate && vitest run --project integration",
     "test:watch": "vitest",
-    "typecheck": "prisma generate && tsc --noEmit",
-    "openapi": "pnpm build && node dist/openapi/write-openapi.js"
+    "typecheck": "tsc --noEmit",
+    "openapi": "prisma generate && tsc -p tsconfig.build.json && node dist/openapi/write-openapi.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1147.0",

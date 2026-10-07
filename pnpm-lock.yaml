@@ -140,6 +140,39 @@ importers:
         specifier: 5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.1))
 
+  e2e:
+    devDependencies:
+      '@billilge/senv':
+        specifier: workspace:*
+        version: link:../apps/cli
+      '@senv/api-client':
+        specifier: workspace:*
+        version: link:../packages/api-client
+      '@senv/config':
+        specifier: workspace:*
+        version: link:../packages/config
+      '@senv/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@senv/server':
+        specifier: workspace:*
+        version: link:../apps/server
+      '@swc/core':
+        specifier: 1.16.13
+        version: 1.16.13
+      '@types/node':
+        specifier: ^24.19.1
+        version: 24.19.1
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      unplugin-swc:
+        specifier: 2.0.0
+        version: 2.0.0(@swc/core@1.16.13)(esbuild@0.27.7)(rolldown@1.2.12)(rollup@4.64.1)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.1))
+      vitest:
+        specifier: 5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/api-client:
     dependencies:
       openapi-fetch:

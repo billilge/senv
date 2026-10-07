@@ -2,14 +2,9 @@
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
   "tasks": {
-    "build": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/server/openapi.json"]
-    },
-    "test": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/server/openapi.json"]
-    },
-    "typecheck": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/server/openapi.json"]
+    "generate": {
+      "inputs": ["$TURBO_ROOT$/apps/server/openapi.json"],
+      "outputs": ["src/generated/**"]
     }
   }
 }

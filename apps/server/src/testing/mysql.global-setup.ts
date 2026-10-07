@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { MySqlContainer } from '@testcontainers/mysql';
 import type { TestProject } from 'vitest/node';
 
@@ -18,6 +19,8 @@ export default async function setup(project: TestProject) {
   const databaseUrl = container.getConnectionUri();
 
   execFileSync('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], {
+    // e2e 패키지에서도 쓰므로 마이그레이션은 항상 서버 폴더(apps/server)에서 실행한다
+    cwd: fileURLToPath(new URL('../..', import.meta.url)),
     env: { ...process.env, DATABASE_URL: databaseUrl },
     stdio: 'pipe',
   });

@@ -15,9 +15,9 @@
   ],
   "scripts": {
     "generate": "openapi-typescript ../../apps/server/openapi.json -o src/generated/schema.d.ts",
-    "build": "pnpm generate && tsup",
-    "test": "pnpm generate && vitest run",
-    "typecheck": "pnpm generate && tsc --noEmit"
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "openapi-fetch": "0.17.0"
