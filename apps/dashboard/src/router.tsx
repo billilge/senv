@@ -8,9 +8,9 @@ import {
 import { AppLayout } from './layout/app-layout';
 import { DevicePage } from './pages/device-page';
 import { LoginPage } from './pages/login-page';
-import { UsersPage } from './pages/placeholders';
 import { ProjectPage } from './pages/project-page';
 import { ProjectsPage } from './pages/projects-page';
+import { UsersPage } from './pages/users-page';
 
 const rootRoute = createRootRoute({ component: Outlet });
 
