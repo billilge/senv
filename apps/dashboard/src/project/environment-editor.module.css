@@ -1,0 +1,36 @@
+.heading {
+  display: flex;
+  align-items: center;
+  gap: var(--base-size-8);
+  margin: 0;
+  font-size: var(--text-title-size-small);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.valueCell {
+  width: 100%;
+}
+
+.valueCell textarea,
+.mono textarea {
+  font-family: var(--fontStack-monospace);
+  font-size: var(--text-body-size-small);
+}
+
+.removed {
+  color: var(--fgColor-muted);
+  text-decoration: line-through;
+}
+
+/* 키 추가와 .env 붙여넣기를 넓은 화면에서는 나란히 */
+.tools {
+  display: grid;
+  gap: var(--base-size-16);
+}
+
+@media (min-width: 768px) {
+  .tools {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}

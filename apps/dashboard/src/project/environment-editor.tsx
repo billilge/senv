@@ -1,11 +1,11 @@
+import { PasteIcon, PlusIcon, TrashIcon, UndoIcon } from '@primer/octicons-react';
 import {
   Button,
+  CounterLabel,
   Flash,
   FormControl,
-  Heading,
   Label,
   Stack,
-  Text,
   Textarea,
   TextInput,
 } from '@primer/react';
@@ -22,6 +22,10 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useApi } from '../api-context';
+import table from '../ui/data-table.module.css';
+import list from '../ui/list-box.module.css';
+import panel from '../ui/panel.module.css';
+import styles from './environment-editor.module.css';
 import { describePublishIssue, readPublishIssues } from './publish-issues';
 import { type EnvironmentValues, environmentKey, fetchEnvironmentValues } from './queries';
 
@@ -88,31 +92,36 @@ export function EnvironmentEditor({
   const merge = (next: Record<string, string>) => setDraft((current) => ({ ...current, ...next }));
 
   return (
-    <Stack>
-      <Heading as="h3">
-        {env} 편집 <Text>{base.version === 0 ? '게시 전' : `기준 v${base.version}`}</Text>
-      </Heading>
+    <Stack gap="normal">
+      <h3 className={styles.heading}>
+        {env} 편집
+        {base.version === 0 ? (
+          <Label variant="secondary">게시 전</Label>
+        ) : (
+          <CounterLabel>{`기준 v${base.version}`}</CounterLabel>
+        )}
+      </h3>
       {rebasedOn !== null && (
         <Flash>최신 값(v{rebasedOn}) 위에 내 변경을 다시 얹었습니다. 확인한 뒤 게시하세요.</Flash>
       )}
       {reviewing ? (
-        <section aria-label="게시할 변경">
-          <Stack>
-            <Heading as="h4">게시할 변경</Heading>
-            <ul>
+        <section aria-label="게시할 변경" className={panel.panel}>
+          <Stack gap="normal">
+            <h4 className={panel.title}>게시할 변경</h4>
+            <ul className={list.box}>
               {diff.added.map((key) => (
-                <li key={key}>
-                  <Label variant="success">추가</Label> <code>{key}</code>
+                <li key={key} className={list.row}>
+                  <Label variant="success">추가</Label> <code className={table.key}>{key}</code>
                 </li>
               ))}
               {diff.changed.map((key) => (
-                <li key={key}>
-                  <Label variant="accent">변경</Label> <code>{key}</code>
+                <li key={key} className={list.row}>
+                  <Label variant="accent">변경</Label> <code className={table.key}>{key}</code>
                 </li>
               ))}
               {diff.removed.map((key) => (
-                <li key={key}>
-                  <Label variant="danger">삭제</Label> <code>{key}</code>
+                <li key={key} className={list.row}>
+                  <Label variant="danger">삭제</Label> <code className={table.key}>{key}</code>
                 </li>
               ))}
             </ul>
@@ -121,71 +130,101 @@ export function EnvironmentEditor({
               error={publish.error}
               onPublish={(message) => publish.mutate(message)}
               onReload={reload}
+              onBack={() => setReviewing(false)}
             />
-            <Button onClick={() => setReviewing(false)}>편집으로 돌아가기</Button>
           </Stack>
         </section>
       ) : (
         <>
           {keys.length === 0 ? (
-            <Text>아직 값이 없습니다. 아래에서 키를 추가하거나 .env를 붙여넣으세요.</Text>
+            <div className={list.box}>
+              <p className={list.empty}>
+                아직 값이 없습니다. 아래에서 키를 추가하거나 .env를 붙여넣으세요.
+              </p>
+            </div>
           ) : (
-            <table>
-              <tbody>
-                {keys.map((key) =>
-                  Object.hasOwn(draft, key) ? (
-                    <tr key={key}>
-                      <th scope="row">{key}</th>
-                      <td>
-                        <Textarea
-                          aria-label={`${key} 값`}
-                          rows={draft[key]?.includes('\n') ? 4 : 1}
-                          value={draft[key]}
-                          onChange={(event) => setValue(key, event.target.value)}
-                        />
-                      </td>
-                      <td>
-                        {!Object.hasOwn(base.variables, key) && (
-                          <Label variant="success">추가됨</Label>
-                        )}
-                        {diff.changed.includes(key) && <Label variant="accent">바뀜</Label>}
-                        <Button
-                          size="small"
-                          variant="invisible"
-                          aria-label={`${key} 삭제`}
-                          onClick={() => remove(key)}
-                        >
-                          삭제
-                        </Button>
-                      </td>
-                    </tr>
-                  ) : (
-                    <tr key={key}>
-                      <th scope="row">
-                        <s>{key}</s>
-                      </th>
-                      <td>
-                        <Label variant="danger">삭제됨</Label>
-                      </td>
-                      <td>
-                        <Button
-                          size="small"
-                          variant="invisible"
-                          aria-label={`${key} 되살리기`}
-                          onClick={() => setValue(key, base.variables[key] ?? '')}
-                        >
-                          되살리기
-                        </Button>
-                      </td>
-                    </tr>
-                  ),
-                )}
-              </tbody>
-            </table>
+            <div className={table.container}>
+              <table className={table.table}>
+                <thead>
+                  <tr>
+                    <th scope="col">키</th>
+                    <th scope="col">값</th>
+                    <th scope="col">
+                      <span className={table.muted}>변경</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {keys.map((key) =>
+                    Object.hasOwn(draft, key) ? (
+                      <tr key={key}>
+                        <th scope="row" className={table.key}>
+                          {key}
+                        </th>
+                        <td className={styles.valueCell}>
+                          <Textarea
+                            block
+                            resize="vertical"
+                            aria-label={`${key} 값`}
+                            rows={draft[key]?.includes('\n') ? 4 : 1}
+                            value={draft[key]}
+                            onChange={(event) => setValue(key, event.target.value)}
+                          />
+                        </td>
+                        <td className={table.actions}>
+                          <Stack
+                            direction="horizontal"
+                            gap="condensed"
+                            align="center"
+                            justify="end"
+                          >
+                            {!Object.hasOwn(base.variables, key) && (
+                              <Label variant="success">추가됨</Label>
+                            )}
+                            {diff.changed.includes(key) && <Label variant="accent">바뀜</Label>}
+                            <Button
+                              size="small"
+                              variant="invisible"
+                              leadingVisual={TrashIcon}
+                              aria-label={`${key} 삭제`}
+                              onClick={() => remove(key)}
+                            >
+                              삭제
+                            </Button>
+                          </Stack>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={key}>
+                        <th scope="row" className={`${table.key} ${styles.removed}`}>
+                          {key}
+                        </th>
+                        <td>
+                          <Label variant="danger">삭제됨</Label>
+                        </td>
+                        <td className={table.actions}>
+                          <Button
+                            size="small"
+                            variant="invisible"
+                            leadingVisual={UndoIcon}
+                            aria-label={`${key} 되살리기`}
+                            onClick={() => setValue(key, base.variables[key] ?? '')}
+                          >
+                            되살리기
+                          </Button>
+                        </td>
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
-          <AddKey existing={draft} onAdd={setValue} />
-          <PasteDotenv onApply={merge} />
-          <Stack direction="horizontal">
+          <div className={styles.tools}>
+            <AddKey existing={draft} onAdd={setValue} />
+            <PasteDotenv onApply={merge} />
+          </div>
+          <Stack direction="horizontal" gap="condensed">
             <Button
               variant="primary"
               disabled={!hasChanges(diff)}
@@ -221,26 +260,43 @@ function AddKey({
   };
 
   return (
-    <Stack direction="horizontal" align="end" wrap="wrap">
-      <FormControl>
-        <FormControl.Label>새 키</FormControl.Label>
-        <TextInput
-          value={key}
-          onChange={(event) => {
-            setKey(event.target.value);
-            setError(null);
-          }}
-        />
-        {error && <FormControl.Validation variant="error">{error}</FormControl.Validation>}
-      </FormControl>
-      <FormControl>
-        <FormControl.Label>새 값</FormControl.Label>
-        <Textarea rows={1} value={value} onChange={(event) => setValue(event.target.value)} />
-      </FormControl>
-      <Button disabled={!key} onClick={add}>
-        추가
-      </Button>
-    </Stack>
+    <section className={panel.panel} aria-labelledby="add-key-title">
+      <h4 id="add-key-title" className={panel.title}>
+        키 추가
+      </h4>
+      <Stack gap="condensed">
+        <FormControl>
+          <FormControl.Label>새 키</FormControl.Label>
+          <TextInput
+            block
+            monospace
+            placeholder="API_URL"
+            value={key}
+            onChange={(event) => {
+              setKey(event.target.value);
+              setError(null);
+            }}
+          />
+          {error && <FormControl.Validation variant="error">{error}</FormControl.Validation>}
+        </FormControl>
+        <FormControl>
+          <FormControl.Label>새 값</FormControl.Label>
+          <Textarea
+            block
+            rows={1}
+            resize="vertical"
+            className={styles.mono}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        </FormControl>
+        <div>
+          <Button leadingVisual={PlusIcon} disabled={!key} onClick={add}>
+            추가
+          </Button>
+        </div>
+      </Stack>
+    </section>
   );
 }
 
@@ -263,24 +319,34 @@ function PasteDotenv({ onApply }: { onApply: (values: Record<string, string>) =>
   };
 
   return (
-    <FormControl>
-      <FormControl.Label>.env 붙여넣기</FormControl.Label>
-      <FormControl.Caption>
-        같은 키는 붙여넣은 값으로 바뀌고, 없던 키는 추가됩니다
-      </FormControl.Caption>
-      <Textarea
-        rows={4}
-        value={text}
-        onChange={(event) => {
-          setText(event.target.value);
-          setError(null);
-        }}
-      />
-      {error && <FormControl.Validation variant="error">{error}</FormControl.Validation>}
-      <Button disabled={!text.trim()} onClick={apply}>
-        붙여넣은 값 적용
-      </Button>
-    </FormControl>
+    <section className={panel.panel}>
+      <Stack gap="condensed">
+        <FormControl>
+          <FormControl.Label>.env 붙여넣기</FormControl.Label>
+          <FormControl.Caption>
+            같은 키는 붙여넣은 값으로 바뀌고, 없던 키는 추가됩니다
+          </FormControl.Caption>
+          <Textarea
+            block
+            rows={4}
+            resize="vertical"
+            className={styles.mono}
+            placeholder={'API_URL=https://api.example.com\nDEBUG=false'}
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
+              setError(null);
+            }}
+          />
+          {error && <FormControl.Validation variant="error">{error}</FormControl.Validation>}
+        </FormControl>
+        <div>
+          <Button leadingVisual={PasteIcon} disabled={!text.trim()} onClick={apply}>
+            붙여넣은 값 적용
+          </Button>
+        </div>
+      </Stack>
+    </section>
   );
 }
 
@@ -289,29 +355,36 @@ function PublishForm({
   error,
   onPublish,
   onReload,
+  onBack,
 }: {
   pending: boolean;
   error: Error | null;
   onPublish: (message: string) => void;
   onReload: () => void;
+  onBack: () => void;
 }) {
   const [message, setMessage] = useState('');
 
   return (
-    <Stack>
+    <Stack gap="normal">
       <FormControl>
         <FormControl.Label>게시 메시지</FormControl.Label>
         <FormControl.Caption>선택 사항. 버전 기록에 남습니다</FormControl.Caption>
         <TextInput
+          block
           value={message}
           maxLength={500}
+          placeholder="예: API 주소 변경"
           onChange={(event) => setMessage(event.target.value)}
         />
       </FormControl>
       {error && <PublishError error={error} onReload={onReload} />}
-      <Button variant="primary" disabled={pending} onClick={() => onPublish(message.trim())}>
-        게시
-      </Button>
+      <Stack direction="horizontal" gap="condensed">
+        <Button variant="primary" disabled={pending} onClick={() => onPublish(message.trim())}>
+          게시
+        </Button>
+        <Button onClick={onBack}>편집으로 돌아가기</Button>
+      </Stack>
     </Stack>
   );
 }
