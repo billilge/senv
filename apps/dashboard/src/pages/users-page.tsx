@@ -1,8 +1,10 @@
-import { Avatar, Button, Flash, Heading, Label, Spinner, Stack, Text } from '@primer/react';
+import { PersonIcon } from '@primer/octicons-react';
+import { Avatar, Button, Flash, Label, PageHeader, Spinner, Stack, Text } from '@primer/react';
 import { SenvApiError, unwrap } from '@senv/api-client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../api-context';
 import { ME_QUERY_KEY, type User, useMe } from '../auth/use-me';
+import table from '../ui/data-table.module.css';
 import { USERS_QUERY_KEY, useUsers } from '../users/queries';
 
 const STATUS = {
@@ -64,55 +66,67 @@ export function UsersPage() {
   const pendingCount = users.data.users.filter((user) => user.status === 'pending').length;
 
   return (
-    <Stack>
-      <Heading as="h2">사용자 관리</Heading>
-      {pendingCount > 0 && (
-        <Flash variant="warning">
-          승인 대기 {pendingCount}명. 승인해야 값을 보고 내려받을 수 있습니다.
-        </Flash>
-      )}
+    <Stack gap="normal">
+      <PageHeader>
+        <PageHeader.TitleArea>
+          <PageHeader.Title as="h2">사용자 관리</PageHeader.Title>
+        </PageHeader.TitleArea>
+        <PageHeader.Description>
+          GitHub 조직 멤버가 처음 로그인하면 승인 대기로 들어옵니다. 승인해야 값을 보고 내려받을 수
+          있습니다.
+        </PageHeader.Description>
+      </PageHeader>
+      {pendingCount > 0 && <Flash variant="warning">승인 대기 {pendingCount}명이 있습니다.</Flash>}
       {act.isError && (
         <Flash variant="danger">
           {act.error instanceof SenvApiError ? act.error.message : '처리하지 못했습니다.'}
         </Flash>
       )}
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">사용자</th>
-            <th scope="col">상태</th>
-            <th scope="col">역할</th>
-            <th scope="col">관리</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.data.users.map((user) => (
-            <tr key={user.id}>
-              <th scope="row">
-                <Stack direction="horizontal" gap="condensed" align="center">
-                  {user.avatarUrl && <Avatar src={user.avatarUrl} alt="" />}
-                  <Text weight="semibold">{user.login}</Text>
-                  {user.name && <Text>{user.name}</Text>}
-                  {user.id === me.data?.id && <Label>나</Label>}
-                </Stack>
+      <div className={table.container}>
+        <table className={table.table}>
+          <thead>
+            <tr>
+              <th scope="col">사용자</th>
+              <th scope="col">상태</th>
+              <th scope="col">역할</th>
+              <th scope="col" className={table.actions}>
+                관리
               </th>
-              <td>
-                <Label variant={STATUS[user.status].variant}>{STATUS[user.status].text}</Label>
-              </td>
-              <td>
-                <Label variant={ROLE[user.role].variant}>{ROLE[user.role].text}</Label>
-              </td>
-              <td>
-                <UserActions
-                  user={user}
-                  disabled={act.isPending}
-                  onAct={(action) => act.mutate(action)}
-                />
-              </td>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {users.data.users.map((user) => (
+              <tr key={user.id}>
+                <th scope="row">
+                  <Stack direction="horizontal" gap="condensed" align="center">
+                    {user.avatarUrl ? (
+                      <Avatar src={user.avatarUrl} alt="" size={24} />
+                    ) : (
+                      <PersonIcon size={24} />
+                    )}
+                    <Text weight="semibold">{user.login}</Text>
+                    {user.name && <span className={table.muted}>{user.name}</span>}
+                    {user.id === me.data?.id && <Label>나</Label>}
+                  </Stack>
+                </th>
+                <td>
+                  <Label variant={STATUS[user.status].variant}>{STATUS[user.status].text}</Label>
+                </td>
+                <td>
+                  <Label variant={ROLE[user.role].variant}>{ROLE[user.role].text}</Label>
+                </td>
+                <td className={table.actions}>
+                  <UserActions
+                    user={user}
+                    disabled={act.isPending}
+                    onAct={(action) => act.mutate(action)}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Stack>
   );
 }
@@ -139,7 +153,7 @@ function UserActions({
   );
 
   return (
-    <Stack direction="horizontal" gap="condensed" wrap="wrap">
+    <Stack direction="horizontal" gap="condensed" wrap="wrap" justify="end">
       {user.status === 'pending' && button('승인', { kind: 'activate', user }, 'primary')}
       {user.status === 'active' && button('비활성화', { kind: 'disable', user }, 'danger')}
       {user.status === 'disabled' && button('다시 활성화', { kind: 'activate', user })}

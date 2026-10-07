@@ -1,7 +1,9 @@
-import { Flash, Heading, Link, Spinner, Stack, Text } from '@primer/react';
+import { KeyIcon, MarkGithubIcon } from '@primer/octicons-react';
+import { Flash, LinkButton, Spinner } from '@primer/react';
 import { useRouter } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useMe } from '../auth/use-me';
+import card from '../ui/card.module.css';
 
 /** 서버가 /login?error=<code>로 알려주는 로그인 실패 (PRD 결정 기록, web-auth.controller) */
 const LOGIN_ERRORS: Record<string, string> = {
@@ -21,16 +23,30 @@ export function LoginPage({ next, error }: { next?: string; error?: string }) {
   if (me.data) return <RedirectTo href={target} />;
 
   return (
-    <Stack align="center" padding="spacious">
-      <Heading as="h1">Stream Env Control</Heading>
-      <Text>Stream 서비스의 환경변수를 한곳에서 관리합니다.</Text>
-      {error && (
-        <Flash variant="danger">
-          {LOGIN_ERRORS[error] ?? '로그인하지 못했습니다. 다시 시도하세요.'}
-        </Flash>
-      )}
-      <Link href={`/auth/github?next=${encodeURIComponent(target)}`}>GitHub로 로그인</Link>
-    </Stack>
+    <main className={card.page}>
+      <div className={card.card}>
+        <KeyIcon size={48} className={card.logo} />
+        <h1 className={card.title}>Stream Env Control</h1>
+        {error && (
+          <Flash variant="danger">
+            {LOGIN_ERRORS[error] ?? '로그인하지 못했습니다. 다시 시도하세요.'}
+          </Flash>
+        )}
+        <div className={card.box}>
+          <p className={card.note}>Stream 서비스의 환경변수를 한곳에서 관리합니다.</p>
+          <LinkButton
+            href={`/auth/github?next=${encodeURIComponent(target)}`}
+            variant="primary"
+            size="large"
+            block
+            leadingVisual={MarkGithubIcon}
+          >
+            GitHub로 로그인
+          </LinkButton>
+        </div>
+        <p className={card.note}>billilge 조직 멤버만 로그인할 수 있습니다.</p>
+      </div>
+    </main>
   );
 }
 

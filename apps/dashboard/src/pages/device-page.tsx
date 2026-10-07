@@ -1,8 +1,10 @@
-import { Button, Flash, FormControl, Heading, Stack, Text, TextInput } from '@primer/react';
+import { CheckCircleIcon, TerminalIcon, XCircleIcon } from '@primer/octicons-react';
+import { Button, Flash, FormControl, Stack, TextInput } from '@primer/react';
 import { SenvApiError, unwrap } from '@senv/api-client';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useApi } from '../api-context';
+import card from '../ui/card.module.css';
 
 type Decision = 'approve' | 'deny';
 
@@ -18,44 +20,71 @@ export function DevicePage({ code }: { code?: string }) {
   });
 
   if (decide.isSuccess) {
+    const approved = decide.data === 'approve';
     return (
-      <Flash variant={decide.data === 'approve' ? 'success' : 'default'}>
-        {decide.data === 'approve'
-          ? 'CLI 로그인을 승인했습니다. 터미널로 돌아가세요.'
-          : 'CLI 로그인 요청을 거절했습니다.'}
-      </Flash>
+      <div className={card.page}>
+        <div className={card.card}>
+          {approved ? (
+            <CheckCircleIcon size={48} className={card.logo} />
+          ) : (
+            <XCircleIcon size={48} className={card.logo} />
+          )}
+          <Flash variant={approved ? 'success' : 'default'}>
+            {approved
+              ? 'CLI 로그인을 승인했습니다. 터미널로 돌아가세요.'
+              : 'CLI 로그인 요청을 거절했습니다.'}
+          </Flash>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Stack>
-      <Heading as="h2">CLI 로그인 승인</Heading>
-      <Text>
-        터미널에 표시된 코드와 같은지 확인하세요. 본인이 실행한 senv login이 아니면 거절하세요.
-      </Text>
-      {decide.isError && (
-        <Flash variant="danger">
-          {decide.error instanceof SenvApiError
-            ? decide.error.message
-            : '요청을 보내지 못했습니다.'}
-        </Flash>
-      )}
-      <FormControl>
-        <FormControl.Label>코드</FormControl.Label>
-        <TextInput value={userCode} onChange={(event) => setUserCode(event.target.value)} />
-      </FormControl>
-      <Stack direction="horizontal">
-        <Button
-          variant="primary"
-          disabled={!userCode || decide.isPending}
-          onClick={() => decide.mutate('approve')}
-        >
-          승인
-        </Button>
-        <Button disabled={!userCode || decide.isPending} onClick={() => decide.mutate('deny')}>
-          거절
-        </Button>
-      </Stack>
-    </Stack>
+    <div className={card.page}>
+      <div className={card.card}>
+        <TerminalIcon size={48} className={card.logo} />
+        <h2 className={card.title}>CLI 로그인 승인</h2>
+        {decide.isError && (
+          <Flash variant="danger">
+            {decide.error instanceof SenvApiError
+              ? decide.error.message
+              : '요청을 보내지 못했습니다.'}
+          </Flash>
+        )}
+        <div className={card.box}>
+          <p className={card.note}>
+            터미널에 표시된 코드와 같은지 확인하세요. 본인이 실행한 senv login이 아니면 거절하세요.
+          </p>
+          <FormControl>
+            <FormControl.Label>코드</FormControl.Label>
+            <TextInput
+              block
+              size="large"
+              className={card.code}
+              placeholder="XXXX-XXXX"
+              value={userCode}
+              onChange={(event) => setUserCode(event.target.value)}
+            />
+          </FormControl>
+          <Stack direction="horizontal" gap="condensed">
+            <Button
+              variant="primary"
+              block
+              disabled={!userCode || decide.isPending}
+              onClick={() => decide.mutate('approve')}
+            >
+              승인
+            </Button>
+            <Button
+              block
+              disabled={!userCode || decide.isPending}
+              onClick={() => decide.mutate('deny')}
+            >
+              거절
+            </Button>
+          </Stack>
+        </div>
+      </div>
+    </div>
   );
 }

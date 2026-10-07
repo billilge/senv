@@ -49,7 +49,8 @@
   word-break: break-all;
 }
 
-.actions {
+/* .table th의 왼쪽 정렬보다 우선해야 하므로 .table을 붙인다 */
+.table .actions {
   text-align: right;
   white-space: nowrap;
 }
