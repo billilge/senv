@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 문서 상태 | v1.7 (M1 구현 중, 진행 상황은 15장) |
+| 문서 상태 | v1.8 (M1 구현 중, 진행 상황은 15장) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.8: M1 범위 조정(결정 39) · v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -207,7 +207,7 @@ flowchart LR
 | 서버 상태 | TanStack Query + `packages/api-client` | 캐시, 재시도, 낙관적 업데이트 |
 | 디자인 시스템 | Primer (`@primer/react`, `@primer/primitives`, `@primer/octicons-react`) | GitHub 로그인과 어울리는 GitHub 스타일 UI. 다크 모드만 지원한다(결정 35). 접근성이 기본 제공된다. 별도 CSS 프레임워크 없이 Primer 컴포넌트와 디자인 토큰(CSS 변수)으로 스타일을 맞춘다 |
 | 매트릭스 표 | HTML 표 + Primer 디자인 토큰(CSS Modules) | M1 표에는 필터·정렬이 없어 직접 그린다. 필터·정렬·고정 열이 필요해지면 Primer `DataTable` + TanStack Table을 쓴다 |
-| diff 표시 | `core`의 `diffVariables` (M1) | M1 게시 확인은 값 없이 키 이름만 보여준다. 값 비교(jsdiff)는 M2 버전 비교와 함께 |
+| diff 표시 | `core`의 `diffVariables` | 게시 확인은 값 없이 키 이름만 보여준다. 버전 비교 화면에서 값을 어떻게 보여줄지는 구현할 때 정한다 |
 | 목업 모드 | `pnpm dev:mock` (브라우저 안의 가짜 API) | 서버·DB·GitHub 없이 모든 화면을 확인한다. 프로덕션 빌드에는 들어가지 않는다 (결정 37) |
 
 **CLI**
@@ -534,12 +534,12 @@ stream-env-backups/                           # R2 버킷 (Coolify 예약 백업
 | `senv pull [--env <env>]` | 최신 버전을 받아 `.env` 파일로 저장 | M1 |
 | `senv run [--env <env>] -- <cmd>` | 파일 없이 환경변수를 주입해 명령 실행 | M1 |
 | `senv list` / `senv get <KEY>` | 키 목록(값 마스킹) / 단일 값 조회 | M1 |
-| `senv status` | 로컬 파일 버전과 원격 최신 버전 비교 | M2 |
-| `senv diff` | 로컬 `.env`와 원격 값의 차이(추가·변경·삭제) | M2 |
-| `senv set <KEY>=<VALUE> [--env <env>]` | 값 수정 후 새 버전 게시 (쓰기 권한 필요) | M2 |
-| `senv push [--file <path>]` | 로컬 `.env`를 diff 확인 후 일괄 반영. 기존 파일 이관에 사용 | M2 |
-| `senv export --format <dotenv\|json\|shell\|yaml>` | 원하는 형식으로 표준 출력 | M2 |
-| `senv doctor` | `.gitignore` 등록, 필수 키 누락, 타입 오류, 시크릿의 공개 접두사 사용 점검 | M2 |
+| `senv status` | 로컬 파일 버전과 원격 최신 버전 비교 | M1 |
+| `senv diff` | 로컬 `.env`와 원격 값의 차이(추가·변경·삭제) | M1 |
+| `senv set <KEY>=<VALUE> [--env <env>]` | 값 수정 후 새 버전 게시 (쓰기 권한 필요) | M1 |
+| `senv push [--file <path>]` | 로컬 `.env`를 diff 확인 후 일괄 반영. 기존 파일 이관에 사용 | M1 |
+| `senv export --format <dotenv\|json\|shell\|yaml>` | 원하는 형식으로 표준 출력 | M1 |
+| `senv doctor` | `.gitignore` 등록, 필수 키 누락, 타입 오류, 시크릿의 공개 접두사 사용 점검 | M1 |
 | `senv sync --target <연결 이름>` | 배포 대상 반영을 로컬·CI에서 실행 (서버에서 닿지 않는 인프라용) | M4 |
 
 ### 6.3 요구사항
@@ -569,8 +569,8 @@ stream-env-backups/                           # R2 버킷 (Coolify 예약 백업
 | 프로젝트 목록 | 프로젝트별 환경 수, 최근 게시, 누락 키 수, Coolify 동기화 상태 | M1 |
 | 변수 매트릭스 | 행은 키, 열은 환경. 칸 상태는 설정됨·누락·다른 환경과 같음. 값은 마스킹 | M1 |
 | 편집·게시 | 셀 편집, `.env` 붙여넣기 일괄 입력, diff 확인 후 메시지와 함께 게시 | M1 |
-| 버전 기록 | 버전 목록, 두 버전 비교, 롤백 | M2 |
-| 키 스키마 | 키별 타입·필수·visibility·buildTime·설명 관리 | M2 |
+| 버전 기록 | 버전 목록, 두 버전 비교, 롤백 | M1 |
+| 키 스키마 | 키별 타입·필수·visibility·buildTime·설명 관리 | M1 |
 | 멤버·권한 | 프로젝트 × 환경 단위 권한, 만료일, 비활성화 | M2 |
 | 서비스 토큰 | CI·자동화용 토큰 발급, 범위·만료 지정, 폐기 | M2 |
 | 감사 로그 | 이벤트 필터·검색, CSV 내보내기 | M2 |
@@ -907,8 +907,8 @@ CLI·CI는 `Authorization: Bearer <token>` 헤더를, 대시보드는 세션 쿠
 
 | 단계 | 범위 | 완료 기준 |
 | --- | --- | --- |
-| **M1 MVP** | 모노레포 골격, Coolify에 `api`·`worker` 배포, 기존 MySQL에 `stream_env` 연결, R2 연결, GitHub 로그인(org 멤버십 확인), 프로젝트·환경·변수 편집(매트릭스, 게시), 버전 스냅샷, 봉투 암호화, CLI `login`·`init`·`pull`·`run`·`list`·`get` | 팀 전원이 development 값을 `senv`로 받아 쓴다 |
-| **M2 운영 안전장치** | 프로젝트 × 환경 권한, GitHub org 멤버십 매일 재확인, 감사 로그, 버전 비교·롤백, 키 스키마·검증, 서비스 토큰, CLI `status`·`diff`·`set`·`push`·`export`·`doctor`, 개인 덮어쓰기 파일 | development·production 값 이관 완료, Slack·Notion 사본 삭제 |
+| **M1 MVP** | 모노레포 골격, Coolify에 `api`·`worker` 배포, 기존 MySQL에 `stream_env` 연결, R2 연결, GitHub 로그인(org 멤버십 확인, 역할 미리 지정), 프로젝트·환경·변수 편집(매트릭스, 게시, 환경 간 복사, `.env` 붙여넣기), 프로젝트 목록 요약, 버전 스냅샷, 버전 기록·비교·롤백, 키 스키마·검증(클라이언트 노출 검사 포함), 봉투 암호화, CLI `login`·`init`·`pull`·`run`·`list`·`get`·`status`·`diff`·`set`·`push`·`export`·`doctor` | 팀 전원이 development 값을 `senv`로 받아 쓴다 |
+| **M2 운영 안전장치** | 프로젝트 × 환경 권한, GitHub org 멤버십 매일 재확인, 감사 로그, 서비스 토큰, 개인 덮어쓰기 파일 | development·production 값 이관 완료, Slack·Notion 사본 삭제 |
 | **M3 배포 대상 연동** | 제공자 인터페이스(`core`)와 `target-testkit`, Coolify 제공자, 연결·매핑, 초기 가져오기, diff 미리보기, 게시 시 자동 동기화, 재시작·재배포, 드리프트 감지 | 모든 Coolify 앱이 대시보드 값과 일치하고 수동 붙여넣기가 없다. 메모리 제공자로 전체 동기화 흐름 테스트가 통과한다 |
 | **M4 확장** | production 변경 2인 승인, GitHub org 웹훅으로 즉시 권한 회수, GitHub 팀 → 역할 템플릿 매핑, Slack 알림, Coolify Service 지원, 다른 배포 대상 제공자(AWS 등), 시크릿 교체 알림, 오프라인 캐시, `senv sync` | 항목별로 따로 결정 |
 
@@ -971,7 +971,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 24 | CSRF | 세션 쿠키 SameSite=Lax·HttpOnly, 쿠키로 인증한 쓰기 요청은 Origin이 APP_URL과 같아야 함 | 9.1 |
 | 25 | API 오류 형식 | `{ code, message, details }` (code로 분기, message는 사람에게 표시) | 11장 |
 | 26 | CLI 서버 주소 | `https://senv.stream.billilge.site` 기본 내장, `SENV_API_URL`로 변경 | 6.3 |
-| 27 | 클라이언트 노출 검사 | M2 키 스키마(secret/public)와 함께 켠다. M1 CLI는 검사하지 않음 | 6.3 |
+| 27 | 클라이언트 노출 검사 | 키 스키마(secret/public)와 함께 켠다. 키 스키마가 M1으로 당겨져 M1에서 켠다 (결정 39) | 6.3 |
 | 28 | `$`가 든 값 | `.env`에 그대로 쓰고 경고하며 `senv run`을 권한다 (Vite·Expo가 `$VAR`를 치환하기 때문) | 6.3 |
 | 29 | 키체인이 없을 때 | `~/.config/senv/credentials.json`(권한 600)으로 대체하고 경고 | 9.2 |
 | 30 | 대시보드 편집 단위 | 한 번에 한 환경. 그 환경의 변경을 모아 diff 확인 후 한 번에 게시 (게시 한 번 = 버전 하나) | 7.2 |
@@ -983,6 +983,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 36 | 대시보드 레이아웃 | GitHub 저장소 화면형: 어두운 헤더(앱 이름, 사용자 메뉴) + 아이콘·개수가 붙은 탭(UnderlineNav), 최대 1280px 가운데 정렬 본문, 테두리 있는 목록 상자, GitHub식 표. 새 프로젝트는 대화상자, 로그인·CLI 승인은 가운데 카드 | 7.1 |
 | 37 | 디자인 확인용 목업 모드 | `pnpm dev:mock`: 브라우저 안의 가짜 API(예시 데이터, 게시·검증·사용자 관리 규칙 흉내)와 역할 전환 도구. 프로덕션 빌드에서는 빠진다 | 4.2 |
 | 38 | 속도 제한 수치 | 경로별 IP당 1분 한도: GitHub 로그인 20, 디바이스 로그인 시작 10, CLI 로그인 승인 10, 디바이스 폴링·refresh 60. 넘으면 429와 `Retry-After`. 클라이언트 IP는 `TRUST_PROXY`(기본 1, Traefik) 단계만큼 `X-Forwarded-For`를 믿어 읽는다 | 4.2, 9.1 |
+| 39 | M1 범위 조정 (2026-10-08) | 7장의 프로젝트 목록 요약, 역할 미리 지정, 환경 간 복사, `.env` 붙여넣기 삭제 후보를 M1에 넣는다. M2에서 버전 기록·비교·롤백, 키 스키마·검증(클라이언트 노출 검사 포함), CLI `status`·`diff`·`set`·`push`·`export`·`doctor`를 M1으로 당긴다. 프로젝트 × 환경 권한, 멤버십 매일 재확인, 감사 로그, 서비스 토큰, 개인 덮어쓰기는 M2에 둔다 | 6.2, 7.1, 12장 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
@@ -1035,13 +1036,20 @@ R2(S3) 어댑터와 실제 GitHub HTTP 클라이언트는 자동 테스트하지
 
 ### 15.3 M1에서 남은 것
 
-| 작업 | 상태 |
-| --- | --- |
-| Dockerfile·`docker-compose.yml`(api, worker), api 시작 시 `prisma migrate deploy` | 진행 중 |
-| 브라우저 E2E (Playwright, 결정 34) | 남음 |
-| GitHub Actions: 검사(CI), CLI를 GitHub Packages로 배포 | 남음 |
-| 대시보드 화면 요구 중 아직 없는 것: 프로젝트 목록의 최근 게시·누락 키 수(7.1), GitHub 사용자명으로 역할 미리 지정(7.1), 환경 간 복사(7.2), `.env` 붙여넣기의 삭제 후보 표시(7.2) | M1에 넣을지 확인 필요 |
-| 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관) | 담당자 작업 |
+결정 39로 M1 범위가 늘었다. 아래 순서로 진행한다.
+
+| # | 작업 | 상태 |
+| --- | --- | --- |
+| 1 | Dockerfile·`docker-compose.yml`(api, worker), api 시작 시 `prisma migrate deploy` | 진행 중 |
+| 2 | 버전 기록·비교·롤백 (서버 API, 대시보드 화면) | 남음 |
+| 3 | 키 스키마·검증: 타입·필수·secret/public·설명, 게시 때 검사, 클라이언트 노출 검사 | 남음 |
+| 4 | 프로젝트 목록 요약: 환경별 최근 게시, 누락 키 수 | 남음 |
+| 5 | 역할 미리 지정: GitHub 사용자명으로 첫 로그인 전에 역할 지정 | 남음 |
+| 6 | 환경 간 복사, `.env` 붙여넣기의 삭제 후보 표시 | 남음 |
+| 7 | CLI `status`·`diff`·`set`·`push`·`export`·`doctor` | 남음 |
+| 8 | 브라우저 E2E (Playwright, 결정 34) | 남음 |
+| 9 | GitHub Actions: 검사(CI), CLI를 GitHub Packages로 배포 | 남음 |
+| - | 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관) | 담당자 작업 |
 
 ### 15.4 PRD 원안과 다르게 구현한 것
 
