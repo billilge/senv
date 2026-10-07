@@ -64,6 +64,11 @@ export class SnapshotService {
     };
   }
 
+  /** 게시가 DB에 기록되지 못했을 때 방금 저장한 스냅샷을 지우는 데 쓴다 */
+  async remove(ref: SnapshotRef): Promise<void> {
+    await this.store.delete(ref);
+  }
+
   /** 저장소에 있는 가장 큰 버전 번호. 비상 복구에서 DB 없이 최신 스냅샷을 찾을 때 쓴다 */
   async latestVersion(owner: SnapshotOwner): Promise<number | undefined> {
     return (await this.store.listVersions(owner)).at(-1);

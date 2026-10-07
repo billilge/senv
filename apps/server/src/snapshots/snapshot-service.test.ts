@@ -81,6 +81,13 @@ describe('SnapshotService', () => {
     await expect(service.load(prodV13)).rejects.toThrow(SnapshotNotFoundError);
   });
 
+  it('지운 스냅샷은 더는 읽을 수 없고, 없는 스냅샷을 지워도 오류가 아니다', async () => {
+    await service.save(prodV13, content);
+    await service.remove(prodV13);
+    await expect(service.load(prodV13)).rejects.toThrow(SnapshotNotFoundError);
+    await expect(service.remove(prodV13)).resolves.toBeUndefined();
+  });
+
   it.each([0, -1, 1.5])('버전 %s 로는 저장할 수 없다', async (version) => {
     await expect(service.save({ ...prodV13, version }, content)).rejects.toThrow(
       InvalidSnapshotVersionError,
