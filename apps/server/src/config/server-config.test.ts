@@ -88,6 +88,27 @@ describe('loadServerConfig', () => {
     expect(problems[0]).toContain(name);
   });
 
+  describe('SENV_BOOTSTRAP_ADMINS', () => {
+    it('쉼표로 구분한 GitHub 사용자명을 공백을 빼고 소문자로 읽는다', () => {
+      const config = loadServerConfig(validEnv({ SENV_BOOTSTRAP_ADMINS: ' Alice, bob-2 ,' }));
+      expect(config.bootstrapAdmins).toEqual(['alice', 'bob-2']);
+    });
+
+    it('없거나 비어 있으면 빈 목록이다', () => {
+      expect(loadServerConfig(validEnv()).bootstrapAdmins).toEqual([]);
+      expect(loadServerConfig(validEnv({ SENV_BOOTSTRAP_ADMINS: '' })).bootstrapAdmins).toEqual([]);
+    });
+
+    it.each(['bad name', '-alice', 'alice--x', 'a'.repeat(40)])(
+      'GitHub 사용자명 형식이 아니면(%s) 문제로 알린다',
+      (value) => {
+        const problems = problemsOf(validEnv({ SENV_BOOTSTRAP_ADMINS: `ok-user,${value}` }));
+        expect(problems).toHaveLength(1);
+        expect(problems[0]).toContain('SENV_BOOTSTRAP_ADMINS');
+      },
+    );
+  });
+
   it('로컬 개발용 http://localhost 는 APP_URL로 허용한다', () => {
     expect(loadServerConfig(validEnv({ APP_URL: 'http://localhost:5173' })).appUrl).toBe(
       'http://localhost:5173',

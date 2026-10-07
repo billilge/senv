@@ -20,6 +20,8 @@ export interface ServerConfig {
     clientSecret: string;
     org: string;
   };
+  /** 로그인하자마자 관리자가 되는 GitHub 사용자명 (소문자) */
+  bootstrapAdmins: string[];
 }
 
 /** 부트스트랩 환경변수 문제. 변수 이름과 이유만 담고 값은 담지 않는다 */
@@ -32,6 +34,8 @@ export class ConfigError extends Error {
 
 const GITHUB_ORG_NAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/;
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
+/** GitHub 사용자명: 영숫자와 하이픈(연속·앞뒤 불가), 39자 이하 */
+const GITHUB_LOGIN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 
 const required = () => z.string().trim().min(1, { error: '값이 없습니다', abort: true });
 
@@ -57,6 +61,12 @@ const envSchema = z.object({
   GITHUB_CLIENT_ID: required(),
   GITHUB_CLIENT_SECRET: required(),
   GITHUB_ORG: required().regex(GITHUB_ORG_NAME, { error: 'GitHub 조직 이름 형식이 아닙니다' }),
+  SENV_BOOTSTRAP_ADMINS: z
+    .string()
+    .transform(splitList)
+    .refine((logins) => logins.every((login) => GITHUB_LOGIN.test(login)), {
+      error: '쉼표로 구분한 GitHub 사용자명 목록이어야 합니다',
+    }),
 });
 
 /**
@@ -108,7 +118,15 @@ export function loadServerConfig(env: Record<string, string | undefined>): Serve
       clientSecret: vars.GITHUB_CLIENT_SECRET,
       org: vars.GITHUB_ORG,
     },
+    bootstrapAdmins: vars.SENV_BOOTSTRAP_ADMINS.map((login) => login.toLowerCase()),
   };
+}
+
+function splitList(value: string): string[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item !== '');
 }
 
 function isHttpUrl(value: string): boolean {
