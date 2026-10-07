@@ -34,8 +34,31 @@ model User {
   createdAt   DateTime   @default(now()) @map("created_at") @db.DateTime(3)
   lastLoginAt DateTime?  @map("last_login_at") @db.DateTime(3)
   sessions    Session[]
+  apiTokens   ApiToken[]
 
   @@map("users")
+}
+
+enum ApiTokenKind {
+  access
+  refresh
+  service
+}
+
+/// CLI·CI가 쓰는 토큰. 원문은 발급할 때 한 번만 주고 DB에는 해시만 둔다
+model ApiToken {
+  id        String       @id @default(uuid(7)) @db.Char(36)
+  userId    String       @map("user_id") @db.Char(36)
+  kind      ApiTokenKind
+  tokenHash String       @unique @map("token_hash") @db.Char(64)
+  createdAt DateTime     @map("created_at") @db.DateTime(3)
+  expiresAt DateTime     @map("expires_at") @db.DateTime(3)
+  /// 폐기되었거나, refresh 토큰이면 이미 한 번 쓰였음. 재사용 감지를 위해 행은 남긴다
+  revokedAt DateTime?    @map("revoked_at") @db.DateTime(3)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_tokens")
 }
 
 /// 대시보드 세션. 쿠키에는 원문 토큰, DB에는 해시만 둔다
