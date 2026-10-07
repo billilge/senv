@@ -9,6 +9,7 @@ import { ProjectsService } from './projects-service.js';
 let t: TestApp;
 let admin: { Authorization: string };
 let member: { Authorization: string };
+let memberId: string;
 
 beforeAll(async () => {
   t = await createTestApp();
@@ -17,7 +18,7 @@ beforeEach(async () => {
   await resetDatabase(t.prisma);
   await t.app.get(ProjectsService).ensureSharedProject();
   admin = (await signIn(t, { login: 'admin', role: 'admin' })).auth;
-  member = (await signIn(t, { login: 'bob' })).auth;
+  ({ auth: member, userId: memberId } = await signIn(t, { login: 'bob' }));
 });
 afterAll(() => t.close());
 
@@ -183,5 +184,80 @@ describe('게시와 값 조회 API', () => {
   it('인증 없이는 값을 볼 수 없다', async () => {
     const response = await t.http().get('/api/v1/projects/web/envs/local/variables');
     expect(response.status).toBe(401);
+  });
+});
+
+describe('버전 기록 API', () => {
+  const base = '/api/v1/projects/web/envs/development';
+
+  beforeEach(async () => {
+    await createProject('web');
+    await publish('web', 'development', {
+      baseVersion: 0,
+      changes: { set: { A: '1', B: '1' } },
+      message: '첫 게시',
+    });
+    await publish('web', 'development', { baseVersion: 1, changes: { set: { A: '2' } } });
+  });
+
+  it('버전 목록을 최신부터 작성자 사용자명과 함께 준다', async () => {
+    const response = await t.http().get(`${base}/versions`).set(member);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      versions: [
+        {
+          version: 2,
+          message: '',
+          createdAt: expect.any(String),
+          author: { id: memberId, login: 'bob' },
+        },
+        {
+          version: 1,
+          message: '첫 게시',
+          createdAt: expect.any(String),
+          author: { id: memberId, login: 'bob' },
+        },
+      ],
+    });
+    expect(Number.isNaN(Date.parse(response.body.versions[0].createdAt))).toBe(false);
+  });
+
+  it('지난 버전의 값을 준다. 없는 버전은 404 version_not_found다', async () => {
+    expect((await t.http().get(`${base}/versions/1`).set(member)).body).toEqual({
+      project: 'web',
+      env: 'development',
+      version: 1,
+      variables: { A: '1', B: '1' },
+    });
+    const missing = await t.http().get(`${base}/versions/9`).set(member);
+    expect(missing.status).toBe(404);
+    expect(missing.body).toMatchObject({ code: 'version_not_found' });
+  });
+
+  it('되돌리면 201과 새 버전을 주고 값이 그 버전으로 돌아간다', async () => {
+    const response = await t
+      .http()
+      .post(`${base}/rollback`)
+      .set(member)
+      .send({ toVersion: 1, baseVersion: 2 });
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({
+      version: 3,
+      diff: { added: [], removed: [], changed: ['A'], unchanged: ['B'] },
+    });
+    expect((await t.http().get(base).set(member)).body.variables).toEqual({ A: '1', B: '1' });
+  });
+
+  it('되돌리기도 충돌(409)·바뀐 것 없음(422)·잘못된 요청(400)을 알린다', async () => {
+    const rollback = (body: Record<string, unknown>) =>
+      t.http().post(`${base}/rollback`).set(member).send(body);
+
+    expect((await rollback({ toVersion: 1, baseVersion: 1 })).body).toMatchObject({
+      code: 'version_conflict',
+    });
+    expect((await rollback({ toVersion: 2, baseVersion: 2 })).body).toMatchObject({
+      code: 'no_changes',
+    });
+    expect((await rollback({ toVersion: 'v1', baseVersion: 2 })).status).toBe(400);
   });
 });

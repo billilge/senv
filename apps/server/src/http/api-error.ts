@@ -21,6 +21,7 @@ import {
   NoChangesError,
   PublishValidationError,
   VersionConflictError,
+  VersionNotFoundError,
 } from '../publishing/publish-service.js';
 import {
   AdminRequiredError,
@@ -94,6 +95,7 @@ const RULES: Rule[] = [
     }),
   },
   { type: NoChangesError, status: 422, code: 'no_changes' },
+  { type: VersionNotFoundError, status: 404, code: 'version_not_found' },
   {
     type: PublishValidationError,
     status: 422,

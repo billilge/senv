@@ -9,6 +9,7 @@ import { SnapshotService } from '../snapshots/snapshot-service.js';
 import { InMemorySnapshotStore } from '../storage/in-memory-snapshot-store.js';
 import type { SnapshotRef } from '../storage/snapshot-store.js';
 import { createTestPrisma, resetDatabase } from '../testing/database.js';
+import { createTestUser } from '../testing/users.js';
 import { forceCurrentVersion } from '../testing/versions.js';
 import {
   InvalidEnvironmentError,
@@ -17,6 +18,7 @@ import {
   PublishService,
   PublishValidationError,
   VersionConflictError,
+  VersionNotFoundError,
 } from './publish-service.js';
 
 const prisma = createTestPrisma();
@@ -346,5 +348,126 @@ describe('PublishService.getCurrent', () => {
     await publish({ changes: { set: { SECRET: 'sk_live_abc' } } });
     const envelope: Envelope = await store.get(serverProd(1));
     expect(JSON.stringify(envelope)).not.toContain('sk_live_abc');
+  });
+});
+
+describe('PublishService.listVersions', () => {
+  it('버전을 최신부터 메시지·시각·작성자 GitHub 사용자명과 함께 돌려준다', async () => {
+    const alice = await createTestUser(prisma, { login: 'alice' });
+    await publish({ actor: alice.id, message: '첫 게시' });
+    await publish({ actor: 'token_ci', baseVersion: 1, changes: { set: { B: '2' } }, message: '' });
+
+    expect(await service.listVersions('server', 'production')).toEqual([
+      { version: 2, message: '', createdAt: NOW, author: { id: 'token_ci', login: null } },
+      { version: 1, message: '첫 게시', createdAt: NOW, author: { id: alice.id, login: 'alice' } },
+    ]);
+  });
+
+  it('게시한 적이 없으면 빈 목록이다', async () => {
+    expect(await service.listVersions('server', 'local')).toEqual([]);
+  });
+});
+
+describe('PublishService.getVersion', () => {
+  it('지난 버전의 값을 돌려준다', async () => {
+    await publish({ changes: { set: { A: '1' } } });
+    await publish({ baseVersion: 1, changes: { set: { A: '2' } } });
+
+    expect(await service.getVersion('server', 'production', 1)).toEqual({
+      version: 1,
+      variables: { A: '1' },
+    });
+  });
+
+  it.each([0, 3, -1])('없는 버전(v%i)이면 VersionNotFoundError다', async (version) => {
+    await publish();
+    await publish({ baseVersion: 1, changes: { set: { B: '1' } } });
+    await expect(service.getVersion('server', 'production', version)).rejects.toThrow(
+      VersionNotFoundError,
+    );
+  });
+});
+
+describe('PublishService.rollback', () => {
+  async function threeVersions() {
+    await publish({ changes: { set: { A: '1', B: '1' } } });
+    await publish({ baseVersion: 1, changes: { set: { A: '2' } } });
+    await publish({ baseVersion: 2, changes: { set: { C: '3' }, remove: ['B'] } });
+  }
+
+  it('지난 버전의 값으로 새 버전을 게시한다 (기록은 지우지 않는다)', async () => {
+    await threeVersions();
+
+    const result = await service.rollback({
+      project: 'server',
+      env: 'production',
+      toVersion: 1,
+      baseVersion: 3,
+      actor: 'user_1',
+    });
+
+    expect(result).toEqual({
+      version: 4,
+      diff: { added: ['B'], removed: ['C'], changed: ['A'], unchanged: [] },
+    });
+    expect(await service.getCurrent('server', 'production')).toEqual({
+      version: 4,
+      variables: { A: '1', B: '1' },
+    });
+    const [latest] = await service.listVersions('server', 'production');
+    expect(latest?.message).toBe('v1으로 되돌림');
+  });
+
+  it('메시지를 주면 그 메시지로 남긴다', async () => {
+    await threeVersions();
+    await service.rollback({
+      project: 'server',
+      env: 'production',
+      toVersion: 2,
+      baseVersion: 3,
+      message: '배포 사고로 되돌림',
+      actor: 'user_1',
+    });
+    const [latest] = await service.listVersions('server', 'production');
+    expect(latest?.message).toBe('배포 사고로 되돌림');
+  });
+
+  it('그 사이 다른 게시가 있었으면 VersionConflictError다', async () => {
+    await threeVersions();
+    await expect(
+      service.rollback({
+        project: 'server',
+        env: 'production',
+        toVersion: 1,
+        baseVersion: 2,
+        actor: 'user_1',
+      }),
+    ).rejects.toThrow(VersionConflictError);
+  });
+
+  it('현재와 값이 같은 버전으로는 되돌릴 수 없다 (NoChangesError)', async () => {
+    await threeVersions();
+    await expect(
+      service.rollback({
+        project: 'server',
+        env: 'production',
+        toVersion: 3,
+        baseVersion: 3,
+        actor: 'user_1',
+      }),
+    ).rejects.toThrow(NoChangesError);
+  });
+
+  it('없는 버전이면 VersionNotFoundError다', async () => {
+    await threeVersions();
+    await expect(
+      service.rollback({
+        project: 'server',
+        env: 'production',
+        toVersion: 9,
+        baseVersion: 3,
+        actor: 'user_1',
+      }),
+    ).rejects.toThrow(VersionNotFoundError);
   });
 });

@@ -1,6 +1,7 @@
 import {
   applyChangeSet,
   type ChangeSet,
+  createChangeSet,
   diffVariables,
   type EnvironmentName,
   hasChanges,
@@ -57,6 +58,32 @@ export class VersionConflictError extends Error {
   ) {
     super(`그 사이 다른 게시가 있었습니다 (기준 v${baseVersion}, 현재 v${currentVersion})`);
     this.name = 'VersionConflictError';
+  }
+}
+
+export interface VersionInfo {
+  version: number;
+  message: string;
+  createdAt: Date;
+  /** 사용자가 아닌 토큰이 게시했거나 사용자가 지워졌으면 login이 null이다 */
+  author: { id: string; login: string | null };
+}
+
+export interface RollbackInput {
+  project: string;
+  env: string;
+  /** 이 버전의 값으로 되돌린다 */
+  toVersion: number;
+  baseVersion: number;
+  /** 생략하면 "v{toVersion}으로 되돌림" */
+  message?: string;
+  actor: string;
+}
+
+export class VersionNotFoundError extends Error {
+  constructor(readonly version: number) {
+    super(`버전이 없습니다: v${version}`);
+    this.name = 'VersionNotFoundError';
   }
 }
 
@@ -159,6 +186,55 @@ export class PublishService {
       version: target.currentVersion,
       variables: await this.loadVariables(target, target.currentVersion),
     };
+  }
+
+  /** 버전 기록 (최신부터). 작성자 id를 GitHub 사용자명으로 바꿔 준다 */
+  async listVersions(project: string, env: string): Promise<VersionInfo[]> {
+    const target = await this.findTarget(project, env);
+    const rows = await this.prisma.environmentVersion.findMany({
+      where: { environmentId: target.environmentId },
+      orderBy: { version: 'desc' },
+      select: { version: true, message: true, createdAt: true, createdBy: true },
+    });
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...new Set(rows.map((row) => row.createdBy))] } },
+      select: { id: true, login: true },
+    });
+    const logins = new Map(users.map((user) => [user.id, user.login]));
+    return rows.map(({ createdBy, ...row }) => ({
+      ...row,
+      author: { id: createdBy, login: logins.get(createdBy) ?? null },
+    }));
+  }
+
+  /** 지난 버전의 값 (공유 참조를 해석하기 전) */
+  async getVersion(project: string, env: string, version: number): Promise<CurrentValues> {
+    const target = await this.findTarget(project, env);
+    if (!Number.isInteger(version) || version < 1 || version > target.currentVersion) {
+      throw new VersionNotFoundError(version);
+    }
+    return { version, variables: await this.loadVariables(target, version) };
+  }
+
+  /**
+   * 지난 버전의 값으로 새 버전을 게시한다. 기록은 지우지 않는다.
+   * 기준 버전 값과의 차이를 변경 집합으로 만들어 publish()에 넘기므로 충돌 검사와 검증이 같다.
+   */
+  async rollback(input: RollbackInput): Promise<PublishResult> {
+    const target = await this.findTarget(input.project, input.env);
+    if (input.baseVersion !== target.currentVersion) {
+      throw new VersionConflictError(input.baseVersion, target.currentVersion);
+    }
+    const { variables: wanted } = await this.getVersion(input.project, input.env, input.toVersion);
+    const base = await this.loadVariables(target, input.baseVersion);
+    return this.publish({
+      project: input.project,
+      env: input.env,
+      baseVersion: input.baseVersion,
+      changes: createChangeSet(base, wanted),
+      message: input.message ?? `v${input.toVersion}으로 되돌림`,
+      actor: input.actor,
+    });
   }
 
   private async findTarget(project: string, env: string): Promise<Target> {

@@ -11,8 +11,13 @@ import {
   projectListSchema,
   projectSchema,
   publishResultSchema,
+  versionListSchema,
 } from '../http/api-schemas.js';
-import { type PublishResult, PublishService } from '../publishing/publish-service.js';
+import {
+  type PublishResult,
+  PublishService,
+  type VersionInfo,
+} from '../publishing/publish-service.js';
 import { ProjectsService, type ProjectView } from './projects-service.js';
 
 const createProjectBody = z.object({
@@ -26,6 +31,12 @@ const publishBody = z.object({
     set: z.record(z.string(), z.string()).optional(),
     remove: z.array(z.string()).optional(),
   }),
+  message: z.string().max(500).optional(),
+});
+
+const rollbackBody = z.object({
+  toVersion: z.number().int().min(1),
+  baseVersion: z.number().int().min(0),
   message: z.string().max(500).optional(),
 });
 
@@ -106,5 +117,38 @@ export class ProjectsController {
       message: body.message,
       actor: user.id,
     });
+  }
+
+  @Get(':project/envs/:env/versions')
+  @ApiResponse({ status: 200, standardSchema: versionListSchema })
+  async versions(
+    @Param('project') project: string,
+    @Param('env') env: string,
+  ): Promise<{ versions: VersionInfo[] }> {
+    return { versions: await this.publishing.listVersions(project, env) };
+  }
+
+  /** 지난 버전의 값 (공유 참조를 해석하기 전) */
+  @Get(':project/envs/:env/versions/:version')
+  @ApiResponse({ status: 200, standardSchema: environmentValuesSchema })
+  async version(
+    @Param('project') project: string,
+    @Param('env') env: string,
+    @Param('version') version: string,
+  ): Promise<EnvironmentValues> {
+    return { project, env, ...(await this.publishing.getVersion(project, env, Number(version))) };
+  }
+
+  /** 지난 버전의 값으로 새 버전을 게시한다 */
+  @Post(':project/envs/:env/rollback')
+  @HttpCode(201)
+  @ApiResponse({ status: 201, standardSchema: publishResultSchema })
+  rollback(
+    @Param('project') project: string,
+    @Param('env') env: string,
+    @Body({ schema: rollbackBody }) body: z.infer<typeof rollbackBody>,
+    @CurrentUser() user: UserView,
+  ): Promise<PublishResult> {
+    return this.publishing.rollback({ project, env, ...body, actor: user.id });
   }
 }

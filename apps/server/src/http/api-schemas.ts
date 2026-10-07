@@ -75,6 +75,22 @@ export const publishResultSchema = z
   })
   .meta({ id: 'PublishResult' });
 
+export const versionInfoSchema = z
+  .object({
+    version: z.number().int(),
+    message: z.string(),
+    createdAt: isoDateTime,
+    author: z.object({
+      id: z.string(),
+      login: z.string().nullable().describe('토큰이 게시했거나 사용자가 지워졌으면 null'),
+    }),
+  })
+  .meta({ id: 'VersionInfo' });
+
+export const versionListSchema = z
+  .object({ versions: z.array(versionInfoSchema) })
+  .meta({ id: 'VersionList' });
+
 export const tokenPairSchema = z
   .object({
     accessToken: z.string(),
