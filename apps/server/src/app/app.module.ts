@@ -12,6 +12,7 @@ import { DeliveryService } from '../delivery/delivery-service.js';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { HealthController } from '../health/health.controller.js';
 import { AuthGuard } from '../http/auth.guard.js';
+import { ProjectsController } from '../projects/projects.controller.js';
 import { ProjectsService } from '../projects/projects-service.js';
 import { PublishService } from '../publishing/publish-service.js';
 import { SnapshotService } from '../snapshots/snapshot-service.js';
@@ -31,7 +32,7 @@ export class AppModule {
   static register(deps: AppDependencies): DynamicModule {
     return {
       module: AppModule,
-      controllers: [HealthController, AuthController, WebAuthController],
+      controllers: [HealthController, AuthController, WebAuthController, ProjectsController],
       providers: [
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: SERVER_CONFIG, useValue: deps.config },
@@ -49,6 +50,12 @@ export class AppModule {
           provide: ProjectsService,
           useFactory: (prisma: PrismaClient) => new ProjectsService(prisma),
           inject: [PrismaClient],
+        },
+        {
+          // 앱이 뜰 때 공유 그룹 특수 프로젝트를 보장한다 (비동기 팩토리는 초기화 중에 기다린다)
+          provide: 'SHARED_PROJECT_READY',
+          useFactory: (projects: ProjectsService) => projects.ensureSharedProject(),
+          inject: [ProjectsService],
         },
         {
           provide: PublishService,

@@ -3,10 +3,12 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { inject } from 'vitest';
 import { createApp } from '../app/create-app.js';
+import { ApiTokenService } from '../auth/api-token-service.js';
 import type { ServerConfig } from '../config/server-config.js';
 import { InMemorySnapshotStore } from '../storage/in-memory-snapshot-store.js';
 import { createTestPrisma } from './database.js';
 import { FakeGitHubClient } from './fake-github.js';
+import { createTestUser } from './users.js';
 
 export const TEST_APP_URL = 'http://localhost:3000';
 
@@ -49,3 +51,13 @@ export async function createTestApp(
 }
 
 export type TestApp = Awaited<ReturnType<typeof createTestApp>>;
+
+/** 테스트 사용자를 만들고 CLI처럼 Bearer 토큰으로 인증하는 헤더를 돌려준다 */
+export async function signIn(
+  t: TestApp,
+  overrides: Parameters<typeof createTestUser>[1] = {},
+): Promise<{ userId: string; auth: { Authorization: string } }> {
+  const user = await createTestUser(t.prisma, overrides);
+  const { accessToken } = await t.app.get(ApiTokenService).issuePair(user.id);
+  return { userId: user.id, auth: { Authorization: `Bearer ${accessToken}` } };
+}
