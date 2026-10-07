@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+*.tsbuildinfo
+.DS_Store
+
+# 실제 값이 든 파일은 절대 커밋하지 않는다
+.env
+.env.*
+!.env.example
