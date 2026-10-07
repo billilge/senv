@@ -1046,7 +1046,7 @@ R2(S3) 어댑터와 실제 GitHub HTTP 클라이언트는 자동 테스트하지
 | 1 | Dockerfile·`docker-compose.yml`(api, worker), api 시작 시 `prisma migrate deploy` (`pnpm smoke:docker`로 확인) | 완료 |
 | 2 | 버전 기록·비교·롤백 (서버 API, 대시보드 화면) | 완료 |
 | 3 | 키 스키마·검증: 타입·필수·secret/public·설명, 게시 때 검사, 클라이언트 노출 검사 | 완료 |
-| 4 | 프로젝트 목록 요약: 환경별 최근 게시, 누락 키 수 | 남음 |
+| 4 | 프로젝트 목록 요약: 환경별 최근 게시, 누락 키 수 | 완료 |
 | 5 | 역할 미리 지정: GitHub 사용자명으로 첫 로그인 전에 역할 지정 | 남음 |
 | 6 | 환경 간 복사, `.env` 붙여넣기의 삭제 후보 표시 | 남음 |
 | 7 | CLI `status`·`diff`·`set`·`push`·`export`·`doctor` | 남음 |

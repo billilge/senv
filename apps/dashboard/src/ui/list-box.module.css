@@ -46,3 +46,11 @@
   color: var(--fgColor-muted);
   text-align: center;
 }
+
+/* 설명 아래 줄의 작은 라벨 묶음 (환경별 버전, 누락 수) */
+.meta {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: var(--base-size-4);
+}

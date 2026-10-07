@@ -266,7 +266,7 @@ export class MockServer {
     const body = text ? JSON.parse(text) : {};
     if (this.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, this.delayMs));
 
-    const reply = this.route(request.method, url.pathname, body);
+    const reply = this.route(request.method, url.pathname, body, url.searchParams);
     return new Response(reply.status === 204 ? null : JSON.stringify(reply.body ?? {}), {
       status: reply.status,
       headers: { 'Content-Type': 'application/json' },
@@ -286,7 +286,12 @@ export class MockServer {
     return this.state.users.find((candidate) => candidate.id === id);
   }
 
-  private route(method: string, path: string, body: Record<string, unknown>): Reply {
+  private route(
+    method: string,
+    path: string,
+    body: Record<string, unknown>,
+    query: URLSearchParams = new URLSearchParams(),
+  ): Reply {
     const me = this.me();
     if (path === '/api/v1/me' && method === 'GET') {
       return me ? new Reply(200, me) : problem(401, 'unauthorized', '로그인이 필요합니다');
@@ -317,7 +322,10 @@ export class MockServer {
       if (method === 'GET') {
         // 서버처럼 공유 그룹은 목록에 넣지 않는다 (대시보드가 따로 맨 위에 보여준다)
         const apps = this.state.projects.filter((candidate) => candidate.kind === 'app');
-        return new Reply(200, { projects: apps });
+        if (query.get('include') !== 'summary') return new Reply(200, { projects: apps });
+        return new Reply(200, {
+          projects: apps.map((app) => ({ ...app, summary: this.summary(app.name) })),
+        });
       }
       if (method === 'POST') return this.createProject(me, body);
     }
@@ -395,6 +403,37 @@ export class MockServer {
       );
     }
     return new Reply(200, { project: name, env, ...values[env] });
+  }
+
+  /** 서버의 PublishService.summarize와 같은 규칙 */
+  private summary(name: string) {
+    const values = this.state.values[name];
+    const required = this.schemaOf(name).keys.filter((entry) => entry.required);
+    const environments = ENVIRONMENT_NAMES.map((env) => {
+      const snapshot = values?.[env];
+      const latest = snapshot ? historyOf(snapshot).at(-1) : undefined;
+      return {
+        env,
+        version: snapshot?.version ?? 0,
+        publishedAt: snapshot?.version ? (latest?.createdAt ?? null) : null,
+      };
+    });
+    const allKeys = new Set([
+      ...ENVIRONMENT_NAMES.flatMap((env) => Object.keys(values?.[env]?.variables ?? {})),
+      ...required.map((entry) => entry.key),
+    ]);
+    let missing = 0;
+    let missingRequired = 0;
+    for (const env of ENVIRONMENT_NAMES) {
+      const keys = values?.[env]?.variables ?? {};
+      for (const key of allKeys) {
+        if (Object.hasOwn(keys, key)) continue;
+        missing++;
+        const entry = required.find((candidate) => candidate.key === key);
+        if (entry && !entry.optionalIn.includes(env)) missingRequired++;
+      }
+    }
+    return { environments, missing, missingRequired };
   }
 
   private schemaOf(name: string): ProjectSchema {

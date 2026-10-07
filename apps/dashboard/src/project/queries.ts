@@ -11,12 +11,17 @@ export const projectKey = (project: string) => ['project', project] as const;
 export const environmentKey = (project: string, env: string) =>
   ['project', project, 'env', env] as const;
 
-/** 앱 프로젝트 목록 (공유 그룹 제외). 프로젝트 목록 화면과 헤더의 개수 배지가 같이 쓴다 */
+export type ProjectListItem = ApiSchemas['ProjectListItem'];
+
+/**
+ * 앱 프로젝트 목록 (공유 그룹 제외)과 환경별 요약. 프로젝트 목록 화면과 헤더의 개수 배지가 같이 쓴다
+ */
 export function useProjects() {
   const api = useApi();
   return useQuery({
     queryKey: PROJECTS_QUERY_KEY,
-    queryFn: () => unwrap(api.GET('/api/v1/projects')),
+    queryFn: () =>
+      unwrap(api.GET('/api/v1/projects', { params: { query: { include: 'summary' } } })),
   });
 }
 

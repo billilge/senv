@@ -107,4 +107,51 @@ describe('프로젝트 목록', () => {
     await actor.click(screen.getByRole('button', { name: '취소' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  it('프로젝트마다 환경별 현재 버전과 누락 칸 수(필수 키)를 보여준다', async () => {
+    const api = as('member').reply('GET', '/api/v1/projects', {
+      status: 200,
+      body: {
+        projects: [
+          {
+            ...project('server', 'Stream API'),
+            summary: {
+              environments: [
+                { env: 'local', version: 3, publishedAt: '2026-10-08T05:00:00.000Z' },
+                { env: 'development', version: 5, publishedAt: '2026-10-07T05:00:00.000Z' },
+                { env: 'production', version: 0, publishedAt: null },
+              ],
+              missing: 2,
+              missingRequired: 1,
+            },
+          },
+          {
+            ...project('web'),
+            summary: {
+              environments: [
+                { env: 'local', version: 1, publishedAt: '2026-10-08T05:00:00.000Z' },
+                { env: 'development', version: 1, publishedAt: '2026-10-08T05:00:00.000Z' },
+                { env: 'production', version: 1, publishedAt: '2026-10-08T05:00:00.000Z' },
+              ],
+              missing: 0,
+              missingRequired: 0,
+            },
+          },
+        ],
+      },
+    });
+    renderApp('/', api);
+
+    const server = within(
+      (await screen.findByRole('link', { name: 'server' })).closest('li') as HTMLElement,
+    );
+    expect(server.getByText('local v3')).toBeInTheDocument();
+    expect(server.getByText('development v5')).toBeInTheDocument();
+    expect(server.getByText('production 게시 전')).toBeInTheDocument();
+    expect(server.getByText('누락 2')).toBeInTheDocument();
+    expect(server.getByText('필수 1')).toBeInTheDocument();
+
+    const web = within(screen.getByRole('link', { name: 'web' }).closest('li') as HTMLElement);
+    expect(web.queryByText(/누락/)).not.toBeInTheDocument();
+  });
 });

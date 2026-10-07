@@ -237,4 +237,19 @@ describe('목업 서버', () => {
       },
     });
   });
+
+  it('include=summary면 프로젝트마다 환경별 버전과 누락 칸 수를 담는다', async () => {
+    const { call } = setup();
+    expect((await call('GET', '/api/v1/projects')).body.projects[0].summary).toBeUndefined();
+
+    const { projects } = (await call('GET', '/api/v1/projects?include=summary')).body;
+    const server = projects.find((p: { name: string }) => p.name === 'server');
+    expect(server.summary.environments.map((e: { env: string }) => e.env)).toEqual([
+      'local',
+      'development',
+      'production',
+    ]);
+    // server production에는 REDIS_URL이 없다 (필수지만 production은 예외)
+    expect(server.summary).toMatchObject({ missing: 1, missingRequired: 0 });
+  });
 });

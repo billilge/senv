@@ -20,7 +20,7 @@ import { useMe } from '../auth/use-me';
 import { PROJECTS_QUERY_KEY, useProjects } from '../project/queries';
 import list from '../ui/list-box.module.css';
 
-type Project = ApiSchemas['Project'];
+type Project = ApiSchemas['ProjectListItem'];
 
 export function ProjectsPage() {
   const me = useMe();
@@ -74,6 +74,7 @@ function ProjectList({ projects }: { projects: Project[] }) {
             {project.name}
           </Link>
           <span className={list.description}>{project.displayName}</span>
+          {project.summary && <ProjectSummaryLine summary={project.summary} />}
         </li>
       ))}
       {projects.length === 0 && <li className={list.empty}>아직 프로젝트가 없습니다.</li>}
@@ -134,5 +135,22 @@ function CreateProjectForm({ onDone }: { onDone: () => void }) {
         </Stack>
       </Stack>
     </form>
+  );
+}
+
+/** 환경별 현재 버전과 누락 칸 수 (PRD 7.1) */
+function ProjectSummaryLine({ summary }: { summary: NonNullable<Project['summary']> }) {
+  return (
+    <span className={list.meta}>
+      {summary.environments.map(({ env, version }) => (
+        <Label key={env} variant={version === 0 ? 'secondary' : 'default'}>
+          {version === 0 ? `${env} 게시 전` : `${env} v${version}`}
+        </Label>
+      ))}
+      {summary.missing > 0 && <Label variant="attention">누락 {summary.missing}</Label>}
+      {summary.missingRequired > 0 && (
+        <Label variant="danger">필수 {summary.missingRequired}</Label>
+      )}
+    </span>
   );
 }
