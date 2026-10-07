@@ -57,3 +57,20 @@ export function applyChangeSet(
   for (const key of remove) delete next[key];
   return next;
 }
+
+/** applyChangeSet의 반대: previous를 next로 만드는 변경 집합. 빈 쪽은 넣지 않는다 */
+export function createChangeSet(
+  previous: Record<string, string>,
+  next: Record<string, string>,
+): ChangeSet {
+  const set = Object.fromEntries(
+    Object.entries(next).filter(
+      ([key, value]) => !Object.hasOwn(previous, key) || previous[key] !== value,
+    ),
+  );
+  const remove = Object.keys(previous).filter((key) => !Object.hasOwn(next, key));
+  return {
+    ...(Object.keys(set).length > 0 && { set }),
+    ...(remove.length > 0 && { remove }),
+  };
+}

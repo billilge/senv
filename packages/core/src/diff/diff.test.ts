@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { applyChangeSet, ChangeSetConflictError, diffVariables, hasChanges } from './index';
+import {
+  applyChangeSet,
+  ChangeSetConflictError,
+  createChangeSet,
+  diffVariables,
+  hasChanges,
+} from './index';
 
 describe('diffVariables', () => {
   it('값이 모두 같으면 unchanged만 있다', () => {
@@ -89,5 +95,25 @@ describe('applyChangeSet', () => {
     const current = { A: '1', B: '2' };
     applyChangeSet(current, { set: { A: '9' }, remove: ['B'] });
     expect(current).toEqual({ A: '1', B: '2' });
+  });
+});
+
+describe('createChangeSet', () => {
+  it('새로 생기거나 바뀐 키는 set, 사라진 키는 remove에 담는다', () => {
+    expect(
+      createChangeSet({ KEEP: 'x', OLD: '1', EDIT: 'a' }, { KEEP: 'x', NEW: '2', EDIT: 'b' }),
+    ).toEqual({ set: { NEW: '2', EDIT: 'b' }, remove: ['OLD'] });
+  });
+
+  it('비어 있는 쪽은 넣지 않는다', () => {
+    expect(createChangeSet({ A: '1' }, { A: '2' })).toEqual({ set: { A: '2' } });
+    expect(createChangeSet({ A: '1', B: '2' }, { A: '1' })).toEqual({ remove: ['B'] });
+    expect(createChangeSet({ A: '1' }, { A: '1' })).toEqual({});
+  });
+
+  it('applyChangeSet으로 되돌리면 같은 값이 된다', () => {
+    const previous = { A: '1', B: '', C: '3' };
+    const next = { A: '1', B: 'x', D: '' };
+    expect(applyChangeSet(previous, createChangeSet(previous, next))).toEqual(next);
   });
 });

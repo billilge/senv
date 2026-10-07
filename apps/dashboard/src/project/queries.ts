@@ -1,4 +1,4 @@
-import { type ApiSchemas, unwrap } from '@senv/api-client';
+import { type ApiSchemas, type SenvClient, unwrap } from '@senv/api-client';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useApi } from '../api-context';
 
@@ -19,15 +19,18 @@ export function useProject(project: string) {
 }
 
 /** 편집용 원래 값 (공유 참조를 해석하기 전) */
+export function fetchEnvironmentValues(api: SenvClient, project: string, env: string) {
+  return unwrap(
+    api.GET('/api/v1/projects/{project}/envs/{env}', { params: { path: { project, env } } }),
+  );
+}
+
 export function useEnvironmentValues(project: string, envs: readonly EnvironmentName[]) {
   const api = useApi();
   return useQueries({
     queries: envs.map((env) => ({
       queryKey: environmentKey(project, env),
-      queryFn: () =>
-        unwrap(
-          api.GET('/api/v1/projects/{project}/envs/{env}', { params: { path: { project, env } } }),
-        ),
+      queryFn: () => fetchEnvironmentValues(api, project, env),
     })),
   });
 }

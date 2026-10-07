@@ -1,5 +1,7 @@
-import { Flash, Heading, Spinner, Stack, Text } from '@primer/react';
+import { Button, Flash, Heading, Spinner, Stack, Text } from '@primer/react';
 import { SenvApiError } from '@senv/api-client';
+import { useState } from 'react';
+import { EnvironmentEditor } from '../project/environment-editor';
 import { Matrix } from '../project/matrix';
 import {
   type EnvironmentName,
@@ -43,6 +45,8 @@ function ProjectValues({
   envs: EnvironmentName[];
 }) {
   const results = useEnvironmentValues(project, envs);
+  const [editing, setEditing] = useState<EnvironmentName | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   if (results.some((result) => result.isPending)) return <Spinner />;
   if (results.some((result) => result.isError)) {
     return <Flash variant="danger">값을 불러오지 못했습니다.</Flash>;
@@ -55,6 +59,7 @@ function ProjectValues({
   });
   const keys = new Set(envs.flatMap((env) => Object.keys(values[env]?.variables ?? {})));
   const exampleKey = [...keys].sort()[0] ?? 'KEY';
+  const editingValues = editing && values[editing];
 
   return (
     <Stack>
@@ -68,7 +73,40 @@ function ProjectValues({
           {'}'}처럼 참조합니다.
         </Flash>
       )}
-      {keys.size === 0 ? <Text>아직 값이 없습니다.</Text> : <Matrix envs={envs} values={values} />}
+      {notice && <Flash variant="success">{notice}</Flash>}
+      {editing && editingValues ? (
+        <EnvironmentEditor
+          key={editing}
+          project={project}
+          values={editingValues}
+          onCancel={() => setEditing(null)}
+          onPublished={(version) => {
+            setEditing(null);
+            setNotice(`게시했습니다: ${editing} v${version}`);
+          }}
+        />
+      ) : (
+        <>
+          <Stack direction="horizontal" wrap="wrap">
+            {envs.map((env) => (
+              <Button
+                key={env}
+                onClick={() => {
+                  setNotice(null);
+                  setEditing(env);
+                }}
+              >
+                {env} 편집
+              </Button>
+            ))}
+          </Stack>
+          {keys.size === 0 ? (
+            <Text>아직 값이 없습니다.</Text>
+          ) : (
+            <Matrix envs={envs} values={values} />
+          )}
+        </>
+      )}
     </Stack>
   );
 }
