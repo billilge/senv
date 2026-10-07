@@ -9,6 +9,7 @@ import { SnapshotService } from '../snapshots/snapshot-service.js';
 import { InMemorySnapshotStore } from '../storage/in-memory-snapshot-store.js';
 import type { SnapshotRef } from '../storage/snapshot-store.js';
 import { createTestPrisma, resetDatabase } from '../testing/database.js';
+import { forceCurrentVersion } from '../testing/versions.js';
 import {
   InvalidEnvironmentError,
   NoChangesError,
@@ -252,6 +253,83 @@ describe('PublishService.publish', () => {
       expect(await recording.listVersions(serverProd(1))).toEqual([]);
       expect(await currentVersionOf('server', 'production')).toBe(0);
     });
+  });
+});
+
+describe('공유 그룹 게시의 영향 검사', () => {
+  beforeEach(async () => {
+    await new ProjectsService(prisma).create({ name: 'web' });
+    await publish({
+      project: 'shared',
+      changes: { set: { API_HOST: 'api.stream.dev', CDN_HOST: 'cdn.stream.dev' } },
+    });
+  });
+
+  it('다른 프로젝트가 참조 중인 공유 키를 지우면 breaks_reference로 막고 참조하는 곳을 알려준다', async () => {
+    await publish({ changes: { set: { URL: 'https://${shared.API_HOST}' } } });
+    await publish({ project: 'web', changes: { set: { VITE_API: '${shared.API_HOST}/v1' } } });
+
+    const attempt = publish({
+      project: 'shared',
+      baseVersion: 1,
+      changes: { remove: ['API_HOST'] },
+    });
+    await expect(attempt).rejects.toThrow(PublishValidationError);
+    await expect(attempt).rejects.toMatchObject({
+      issues: [
+        {
+          code: 'breaks_reference',
+          project: 'server',
+          key: 'URL',
+          reference: '${shared.API_HOST}',
+        },
+        {
+          code: 'breaks_reference',
+          project: 'web',
+          key: 'VITE_API',
+          reference: '${shared.API_HOST}',
+        },
+      ],
+    });
+    expect(await currentVersionOf('shared', 'production')).toBe(1);
+  });
+
+  it('아무도 참조하지 않는 공유 키는 지울 수 있다', async () => {
+    await publish({ changes: { set: { URL: 'https://${shared.API_HOST}' } } });
+    await expect(
+      publish({ project: 'shared', baseVersion: 1, changes: { remove: ['CDN_HOST'] } }),
+    ).resolves.toMatchObject({ version: 2 });
+  });
+
+  it('공유 키의 값을 바꾸는 것은 막지 않는다', async () => {
+    await publish({ changes: { set: { URL: 'https://${shared.API_HOST}' } } });
+    await expect(
+      publish({
+        project: 'shared',
+        baseVersion: 1,
+        changes: { set: { API_HOST: 'new.stream.dev' } },
+      }),
+    ).resolves.toMatchObject({ version: 2 });
+  });
+
+  it('다른 환경에서의 참조는 영향을 받지 않는다', async () => {
+    await publish({ project: 'shared', env: 'development', changes: { set: { API_HOST: 'dev' } } });
+    await publish({ env: 'development', changes: { set: { URL: '${shared.API_HOST}' } } });
+    await expect(
+      publish({ project: 'shared', baseVersion: 1, changes: { remove: ['API_HOST'] } }),
+    ).resolves.toMatchObject({ version: 2 });
+  });
+
+  it('이번 게시와 상관없이 이미 깨져 있던 참조는 게시를 막지 않는다', async () => {
+    await forceCurrentVersion(
+      prisma,
+      snapshots,
+      { project: 'server', env: 'production', version: 1 },
+      { URL: '${shared.ALREADY_GONE}' },
+    );
+    await expect(
+      publish({ project: 'shared', baseVersion: 1, changes: { remove: ['CDN_HOST'] } }),
+    ).resolves.toMatchObject({ version: 2 });
   });
 });
 

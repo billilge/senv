@@ -40,6 +40,7 @@ export interface CurrentValues {
 export type PublishIssue =
   | { code: 'invalid_key_name'; key: string }
   | { code: 'reference_in_shared_group'; key: string }
+  | { code: 'breaks_reference'; project: string; key: string; reference: string }
   | ReferenceIssue;
 
 export class InvalidEnvironmentError extends Error {
@@ -113,7 +114,7 @@ export class PublishService {
           const diff = diffVariables(current, next);
           if (!hasChanges(diff)) throw new NoChangesError();
 
-          const issues = await this.validate(target, next);
+          const issues = await this.validate(target, current, next);
           if (issues.length > 0) throw new PublishValidationError(issues);
 
           const version = currentVersion + 1;
@@ -181,8 +182,15 @@ export class PublishService {
     return (await this.snapshots.load(refFor(target, version))).variables;
   }
 
-  /** 키 이름 규칙과 공유 참조를 검사한다. 공유 그룹 값 안에는 참조를 쓸 수 없다 */
-  private async validate(target: Target, next: Record<string, string>): Promise<PublishIssue[]> {
+  /**
+   * 키 이름 규칙과 공유 참조를 검사한다.
+   * 공유 그룹이면 값 안의 참조를 금지하고, 이번 게시로 사라지는 키를 다른 프로젝트가 참조하는지 본다.
+   */
+  private async validate(
+    target: Target,
+    current: Record<string, string>,
+    next: Record<string, string>,
+  ): Promise<PublishIssue[]> {
     const issues: PublishIssue[] = Object.keys(next)
       .filter((key) => !isValidKeyName(key))
       .sort()
@@ -192,8 +200,50 @@ export class PublishService {
       // 빈 공유 그룹으로 해석하면 모든 참조가 이슈로 잡힌다
       const keys = new Set(resolveSharedReferences(next, {}).issues.map((issue) => issue.key));
       for (const key of keys) issues.push({ code: 'reference_in_shared_group', key });
+      issues.push(...(await this.findBrokenDependents(target.env, current, next)));
     } else {
       issues.push(...resolveSharedReferences(next, await this.sharedVariables(target.env)).issues);
+    }
+    return issues;
+  }
+
+  /** 공유 그룹에서 사라지는 키를 같은 환경의 다른 프로젝트가 참조하고 있으면 알려준다 */
+  private async findBrokenDependents(
+    env: EnvironmentName,
+    current: Record<string, string>,
+    next: Record<string, string>,
+  ): Promise<PublishIssue[]> {
+    const removed = Object.keys(current).filter((key) => !Object.hasOwn(next, key));
+    if (removed.length === 0) return [];
+    // 이미 깨져 있던 참조는 이번 게시 탓이 아니므로, 사라지는 키를 가리키는 참조만 본다
+    const removedReferences = new Set(removed.map((key) => `\${shared.${key}}`));
+
+    const dependents = await this.prisma.environment.findMany({
+      where: { name: env, currentVersion: { gt: 0 }, project: { kind: 'app' } },
+      select: { id: true, currentVersion: true, project: { select: { name: true } } },
+      orderBy: { project: { name: 'asc' } },
+    });
+
+    const issues: PublishIssue[] = [];
+    for (const dependent of dependents) {
+      const target: Target = {
+        environmentId: dependent.id,
+        project: dependent.project.name,
+        kind: 'app',
+        env,
+        currentVersion: dependent.currentVersion,
+      };
+      const values = await this.loadVariables(target, dependent.currentVersion);
+      for (const issue of resolveSharedReferences(values, next).issues) {
+        if (issue.code === 'missing_reference' && removedReferences.has(issue.reference)) {
+          issues.push({
+            code: 'breaks_reference',
+            project: target.project,
+            key: issue.key,
+            reference: issue.reference,
+          });
+        }
+      }
     }
     return issues;
   }
