@@ -1,0 +1,48 @@
+/* GitHub 저장소 목록처럼 테두리 있는 상자 안에 줄을 나눠 보여준다 */
+.box {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background-color: var(--bgColor-default);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--base-size-8);
+  padding: var(--base-size-16);
+}
+
+.row + .row {
+  border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
+}
+
+.title {
+  color: var(--fgColor-accent);
+  font-size: var(--text-body-size-large);
+  font-weight: var(--base-text-weight-semibold);
+  text-decoration: none;
+}
+
+.title:hover {
+  text-decoration: underline;
+}
+
+.description {
+  flex-basis: 100%;
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-medium);
+}
+
+.icon {
+  color: var(--fgColor-muted);
+}
+
+.empty {
+  padding: var(--base-size-24) var(--base-size-16);
+  color: var(--fgColor-muted);
+  text-align: center;
+}

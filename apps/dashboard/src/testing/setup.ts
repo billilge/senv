@@ -27,3 +27,16 @@ if (!globalThis.ResizeObserver) {
     disconnect() {}
   } as unknown as typeof ResizeObserver;
 }
+// Primer Tooltip이 쓰는 popover 폴리필이 문서의 adoptedStyleSheets에 스타일을 넣는다
+if (!('adoptedStyleSheets' in Document.prototype)) {
+  const sheets = new WeakMap<Document, CSSStyleSheet[]>();
+  Object.defineProperty(Document.prototype, 'adoptedStyleSheets', {
+    configurable: true,
+    get(this: Document) {
+      return sheets.get(this) ?? [];
+    },
+    set(this: Document, value: CSSStyleSheet[]) {
+      sheets.set(this, value);
+    },
+  });
+}

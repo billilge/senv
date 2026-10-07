@@ -229,7 +229,11 @@ export class MockServer {
     }
 
     if (path === '/api/v1/projects') {
-      if (method === 'GET') return new Reply(200, { projects: this.state.projects });
+      if (method === 'GET') {
+        // 서버처럼 공유 그룹은 목록에 넣지 않는다 (대시보드가 따로 맨 위에 보여준다)
+        const apps = this.state.projects.filter((candidate) => candidate.kind === 'app');
+        return new Reply(200, { projects: apps });
+      }
       if (method === 'POST') return this.createProject(me, body);
     }
 

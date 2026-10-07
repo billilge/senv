@@ -47,7 +47,7 @@ describe('프로젝트 목록', () => {
     });
     renderApp('/', api);
     await screen.findByRole('link', { name: 'web' });
-    expect(screen.queryByRole('button', { name: '프로젝트 만들기' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '새 프로젝트' })).not.toBeInTheDocument();
   });
 
   it('관리자가 새 프로젝트를 만들면 목록에 나타난다', async () => {
@@ -61,12 +61,15 @@ describe('프로젝트 목록', () => {
       .reply('POST', '/api/v1/projects', { status: 201, body: project('app', '모바일 앱') });
     const { user: actor } = renderApp('/', api);
 
-    const form = await screen.findByRole('form', { name: '새 프로젝트' });
+    await actor.click(await screen.findByRole('button', { name: '새 프로젝트' }));
+    const dialog = screen.getByRole('dialog', { name: '새 프로젝트' });
+    const form = within(dialog).getByRole('form', { name: '새 프로젝트' });
     await actor.type(within(form).getByRole('textbox', { name: '이름' }), 'app');
     await actor.type(within(form).getByRole('textbox', { name: '표시 이름' }), '모바일 앱');
     await actor.click(within(form).getByRole('button', { name: '프로젝트 만들기' }));
 
     expect(await screen.findByRole('link', { name: 'app' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.requests.find((r) => r.method === 'POST')?.body).toEqual({
       name: 'app',
       displayName: '모바일 앱',
@@ -85,10 +88,23 @@ describe('프로젝트 목록', () => {
       });
     const { user: actor } = renderApp('/', api);
 
-    const form = await screen.findByRole('form', { name: '새 프로젝트' });
+    await actor.click(await screen.findByRole('button', { name: '새 프로젝트' }));
+    const form = screen.getByRole('form', { name: '새 프로젝트' });
     await actor.type(within(form).getByRole('textbox', { name: '이름' }), 'Web');
     await actor.click(within(form).getByRole('button', { name: '프로젝트 만들기' }));
 
     expect(await screen.findByText(/32자 이하여야 합니다/)).toBeInTheDocument();
+  });
+
+  it('만들기 창은 취소로 닫을 수 있다', async () => {
+    const api = as('admin').reply('GET', '/api/v1/projects', {
+      status: 200,
+      body: { projects: [] },
+    });
+    const { user: actor } = renderApp('/', api);
+
+    await actor.click(await screen.findByRole('button', { name: '새 프로젝트' }));
+    await actor.click(screen.getByRole('button', { name: '취소' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

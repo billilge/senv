@@ -1,11 +1,14 @@
+// biome-ignore-all lint/suspicious/noTemplateCurlyInString: ${shared.KEY} 참조 문법을 글자 그대로 쓴다
+import { PlusIcon, RepoIcon, StackIcon } from '@primer/octicons-react';
 import {
   Button,
+  Dialog,
   Flash,
   FormControl,
-  Heading,
+  Label,
+  PageHeader,
   Spinner,
   Stack,
-  Text,
   TextInput,
 } from '@primer/react';
 import { type ApiSchemas, SenvApiError, unwrap } from '@senv/api-client';
@@ -14,6 +17,7 @@ import { Link } from '@tanstack/react-router';
 import { type FormEvent, useState } from 'react';
 import { useApi } from '../api-context';
 import { useMe } from '../auth/use-me';
+import list from '../ui/list-box.module.css';
 
 type Project = ApiSchemas['Project'];
 
@@ -22,45 +26,68 @@ const PROJECTS_QUERY_KEY = ['projects'] as const;
 export function ProjectsPage() {
   const api = useApi();
   const me = useMe();
+  const [creating, setCreating] = useState(false);
   const projects = useQuery({
     queryKey: PROJECTS_QUERY_KEY,
     queryFn: () => unwrap(api.GET('/api/v1/projects')),
   });
 
   return (
-    <Stack>
-      <Heading as="h2">프로젝트</Heading>
+    <Stack gap="normal">
+      <PageHeader>
+        <PageHeader.TitleArea>
+          <PageHeader.Title as="h2">프로젝트</PageHeader.Title>
+        </PageHeader.TitleArea>
+        {me.data?.role === 'admin' && (
+          <PageHeader.Actions>
+            <Button variant="primary" leadingVisual={PlusIcon} onClick={() => setCreating(true)}>
+              새 프로젝트
+            </Button>
+          </PageHeader.Actions>
+        )}
+      </PageHeader>
       {projects.isPending && <Spinner />}
       {projects.isError && <Flash variant="danger">프로젝트를 불러오지 못했습니다.</Flash>}
       {projects.data && <ProjectList projects={projects.data.projects} />}
-      <Link to="/projects/$project" params={{ project: 'shared' }}>
-        공유 그룹 (여러 프로젝트가 같이 쓰는 값)
-      </Link>
-      {me.data?.role === 'admin' && <CreateProjectForm />}
+      {creating && (
+        <Dialog title="새 프로젝트" width="medium" onClose={() => setCreating(false)}>
+          <CreateProjectForm onDone={() => setCreating(false)} />
+        </Dialog>
+      )}
     </Stack>
   );
 }
 
+/** 공유 그룹을 맨 위에 두고, 그 아래에 앱 프로젝트를 이름 순으로 보여준다 */
 function ProjectList({ projects }: { projects: Project[] }) {
-  if (projects.length === 0) return <Text>아직 프로젝트가 없습니다.</Text>;
   return (
-    <ul>
+    <ul className={list.box}>
+      <li className={list.row}>
+        <StackIcon className={list.icon} />
+        <Link className={list.title} to="/projects/$project" params={{ project: 'shared' }}>
+          공유 그룹
+        </Link>
+        <Label>shared</Label>
+        <span className={list.description}>
+          여러 프로젝트가 같이 쓰는 값. 다른 프로젝트에서 {'${shared.KEY}'}로 참조합니다.
+        </span>
+      </li>
       {projects.map((project) => (
-        <li key={project.name}>
-          <Stack direction="horizontal" align="center">
-            <Link to="/projects/$project" params={{ project: project.name }}>
-              {project.name}
-            </Link>
-            <Text>{project.displayName}</Text>
-          </Stack>
+        <li key={project.name} className={list.row}>
+          <RepoIcon className={list.icon} />
+          <Link className={list.title} to="/projects/$project" params={{ project: project.name }}>
+            {project.name}
+          </Link>
+          <span className={list.description}>{project.displayName}</span>
         </li>
       ))}
+      {projects.length === 0 && <li className={list.empty}>아직 프로젝트가 없습니다.</li>}
     </ul>
   );
 }
 
-/** 관리자만 보인다 (M1에서 구조 변경은 관리자 몫) */
-function CreateProjectForm() {
+/** 관리자만 연다 (M1에서 구조 변경은 관리자 몫) */
+function CreateProjectForm({ onDone }: { onDone: () => void }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
@@ -73,9 +100,8 @@ function CreateProjectForm() {
         }),
       ),
     onSuccess: async () => {
-      setName('');
-      setDisplayName('');
       await queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
+      onDone();
     },
   });
 
@@ -87,7 +113,6 @@ function CreateProjectForm() {
   return (
     <form aria-label="새 프로젝트" onSubmit={submit}>
       <Stack>
-        <Heading as="h3">새 프로젝트</Heading>
         {create.isError && (
           <Flash variant="danger">
             {create.error instanceof SenvApiError ? create.error.message : '만들지 못했습니다.'}
@@ -96,15 +121,22 @@ function CreateProjectForm() {
         <FormControl>
           <FormControl.Label>이름</FormControl.Label>
           <FormControl.Caption>소문자·숫자·하이픈, 32자 이하 (예: web-admin)</FormControl.Caption>
-          <TextInput value={name} onChange={(event) => setName(event.target.value)} />
+          <TextInput block value={name} onChange={(event) => setName(event.target.value)} />
         </FormControl>
         <FormControl>
           <FormControl.Label>표시 이름</FormControl.Label>
-          <TextInput value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          <TextInput
+            block
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+          />
         </FormControl>
-        <Button type="submit" variant="primary" disabled={!name || create.isPending}>
-          프로젝트 만들기
-        </Button>
+        <Stack direction="horizontal" justify="end" gap="condensed">
+          <Button onClick={onDone}>취소</Button>
+          <Button type="submit" variant="primary" disabled={!name || create.isPending}>
+            프로젝트 만들기
+          </Button>
+        </Stack>
       </Stack>
     </form>
   );

@@ -113,6 +113,11 @@ describe('목업 서버', () => {
     });
   });
 
+  it('프로젝트 목록에는 서버처럼 공유 그룹을 넣지 않는다', async () => {
+    const { projects } = (await setup().call('GET', '/api/v1/projects')).body;
+    expect(projects.map((p: { name: string }) => p.name)).toEqual(['app', 'server', 'web']);
+  });
+
   it('새 프로젝트를 만들면 세 환경이 비어 있는 채로 생긴다', async () => {
     const { call } = setup();
     expect(await call('POST', '/api/v1/projects', { name: 'admin-web' })).toMatchObject({
