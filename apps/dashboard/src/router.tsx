@@ -6,8 +6,9 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { AppLayout } from './layout/app-layout';
+import { DevicePage } from './pages/device-page';
 import { LoginPage } from './pages/login-page';
-import { DevicePage, ProjectPage, ProjectsPage, UsersPage } from './pages/placeholders';
+import { ProjectPage, ProjectsPage, UsersPage } from './pages/placeholders';
 
 const rootRoute = createRootRoute({ component: Outlet });
 
@@ -40,7 +41,13 @@ const projectRoute = createRoute({
 const deviceRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/device',
-  component: DevicePage,
+  validateSearch: (search: Record<string, unknown>): { code?: string } => ({
+    code: typeof search.code === 'string' ? search.code : undefined,
+  }),
+  component: function Device() {
+    const { code } = deviceRoute.useSearch();
+    return <DevicePage code={code} />;
+  },
 });
 const usersRoute = createRoute({
   getParentRoute: () => appRoute,

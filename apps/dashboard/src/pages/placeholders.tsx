@@ -9,10 +9,6 @@ export function ProjectPage() {
   return <Heading as="h2">프로젝트 값</Heading>;
 }
 
-export function DevicePage() {
-  return <Heading as="h2">CLI 로그인 승인</Heading>;
-}
-
 export function UsersPage() {
   return <Heading as="h2">사용자 관리</Heading>;
 }
