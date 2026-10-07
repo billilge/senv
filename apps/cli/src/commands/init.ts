@@ -26,9 +26,13 @@ export async function init(context: CliContext, options: InitOptions = {}): Prom
   const configPath = join(cwd, CONFIG_FILE);
   if (!options.force && (await exists(configPath))) throw new AlreadyInitializedError(configPath);
 
-  const project = options.project ?? (await chooseProject(context));
-  // 서버에 있는 프로젝트인지 확인한다 (없으면 SenvApiError 404)
-  await unwrap(context.api.GET('/api/v1/projects/{project}', { params: { path: { project } } }));
+  let project = options.project;
+  if (project) {
+    // 직접 준 이름은 서버에 있는지 확인한다 (없으면 SenvApiError 404). 목록에서 고른 이름은 확인할 필요가 없다
+    await unwrap(context.api.GET('/api/v1/projects/{project}', { params: { path: { project } } }));
+  } else {
+    project = await chooseProject(context);
+  }
 
   const output = options.output ?? '.env.local';
   await writeProjectConfig(cwd, {
