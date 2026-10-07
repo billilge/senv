@@ -530,3 +530,45 @@ describe('키 스키마 검증', () => {
     });
   });
 });
+
+describe('PublishService.summarize (프로젝트 목록 요약)', () => {
+  it('게시할 때 키 이름 목록을 기록에 함께 남긴다 (값은 남기지 않는다)', async () => {
+    await publish({ changes: { set: { B: 'secret-b', A: 'secret-a' } } });
+    const row = await prisma.environmentVersion.findFirstOrThrow();
+    expect(row.keyNames).toBe('A,B');
+  });
+
+  it('환경별 현재 버전·게시 시각과, 매트릭스의 누락 칸 수(그중 필수 키)를 돌려준다', async () => {
+    await publish({ env: 'production', changes: { set: { A: '1', B: '1' } } });
+    await publish({ env: 'local', changes: { set: { A: '1' } } });
+    // 게시한 뒤에 B를 필수로 정하면 이미 빠진 칸이 필수 누락이 된다
+    await new KeySchemaService(prisma, () => NOW).put('server', 'B', { required: true }, 'u1');
+
+    expect(await service.summarize(['server'])).toEqual(
+      new Map([
+        [
+          'server',
+          {
+            environments: [
+              { env: 'local', version: 1, publishedAt: NOW },
+              { env: 'development', version: 0, publishedAt: null },
+              { env: 'production', version: 1, publishedAt: NOW },
+            ],
+            // local은 B, development는 A·B가 없다. 그중 필수(B)는 두 칸
+            missing: 3,
+            missingRequired: 2,
+          },
+        ],
+      ]),
+    );
+  });
+
+  it('키 이름이 기록되지 않은 예전 버전은 스냅샷에서 읽는다', async () => {
+    await publish({ env: 'production', changes: { set: { A: '1', B: '1' } } });
+    await publish({ env: 'local', changes: { set: { A: '1' } } });
+    await prisma.environmentVersion.updateMany({ data: { keyNames: null } });
+
+    const summary = (await service.summarize(['server'])).get('server');
+    expect(summary).toMatchObject({ missing: 3, missingRequired: 0 });
+  });
+});

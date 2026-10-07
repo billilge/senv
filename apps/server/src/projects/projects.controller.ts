@@ -1,5 +1,5 @@
-import { Body, Controller, Get, HttpCode, Inject, Param, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiCookieAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiCookieAuth, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import type { UserView } from '../auth/auth-service.js';
 import { type DeliveredValues, DeliveryService } from '../delivery/delivery-service.js';
@@ -14,6 +14,7 @@ import {
   versionListSchema,
 } from '../http/api-schemas.js';
 import {
+  type ProjectSummary,
   type PublishResult,
   PublishService,
   type VersionInfo,
@@ -61,9 +62,17 @@ export class ProjectsController {
   ) {}
 
   @Get()
+  @ApiQuery({ name: 'include', required: false, enum: ['summary'] })
   @ApiResponse({ status: 200, standardSchema: projectListSchema })
-  async list(): Promise<{ projects: ProjectView[] }> {
-    return { projects: await this.projects.list() };
+  async list(
+    @Query('include') include?: string,
+  ): Promise<{ projects: (ProjectView & { summary?: ProjectSummary })[] }> {
+    const projects = await this.projects.list();
+    if (include !== 'summary') return { projects };
+    const summaries = await this.publishing.summarize(projects.map((project) => project.name));
+    return {
+      projects: projects.map((project) => ({ ...project, summary: summaries.get(project.name) })),
+    };
   }
 
   /** M1에서 멤버는 값을 읽고 쓰고, 프로젝트를 만드는 것처럼 구조를 바꾸는 일은 관리자만 한다 */

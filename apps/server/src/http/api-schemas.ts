@@ -38,8 +38,30 @@ export const projectSchema = z
   })
   .meta({ id: 'Project' });
 
+export const projectSummarySchema = z
+  .object({
+    environments: z.array(
+      z.object({
+        env: z.enum(ENVIRONMENT_NAMES),
+        version: z.number().int(),
+        publishedAt: isoDateTime.nullable(),
+      }),
+    ),
+    missing: z.number().int().describe('키 × 환경 매트릭스에서 값이 없는 칸 수'),
+    missingRequired: z.number().int().describe('그중 필수 키의 칸 수'),
+  })
+  .meta({ id: 'ProjectSummary' });
+
 export const projectListSchema = z
-  .object({ projects: z.array(projectSchema) })
+  .object({
+    projects: z.array(
+      projectSchema
+        .extend({
+          summary: projectSummarySchema.optional().describe('include=summary일 때만 담는다'),
+        })
+        .meta({ id: 'ProjectListItem' }),
+    ),
+  })
   .meta({ id: 'ProjectList' });
 
 const variablesSchema = z.record(z.string(), z.string());

@@ -49,6 +49,27 @@ describe('프로젝트 API', () => {
     expect((await t.http().get('/api/v1/projects/shared').set(member)).body.kind).toBe('shared');
   });
 
+  it('include=summary를 붙이면 환경별 현재 버전·게시 시각과 누락 칸 수를 함께 준다', async () => {
+    await createProject('web');
+    await publish('web', 'production', { baseVersion: 0, changes: { set: { A: '1' } } });
+
+    const list = await t.http().get('/api/v1/projects?include=summary').set(member);
+    expect(list.body.projects).toEqual([
+      expect.objectContaining({
+        name: 'web',
+        summary: {
+          environments: [
+            { env: 'local', version: 0, publishedAt: null },
+            { env: 'development', version: 0, publishedAt: null },
+            { env: 'production', version: 1, publishedAt: expect.any(String) },
+          ],
+          missing: 2,
+          missingRequired: 0,
+        },
+      }),
+    ]);
+  });
+
   it('멤버는 프로젝트를 만들 수 없다 (403 admin_required)', async () => {
     const response = await createProject('web', member);
     expect(response.status).toBe(403);

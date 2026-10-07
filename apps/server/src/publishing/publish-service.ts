@@ -3,6 +3,7 @@ import {
   type ChangeSet,
   createChangeSet,
   diffVariables,
+  ENVIRONMENT_NAMES,
   type EnvironmentName,
   hasChanges,
   isEnvironmentName,
@@ -73,6 +74,15 @@ export interface VersionInfo {
   createdAt: Date;
   /** 사용자가 아닌 토큰이 게시했거나 사용자가 지워졌으면 login이 null이다 */
   author: { id: string; login: string | null };
+}
+
+/** 프로젝트 목록 요약 (PRD 7.1) */
+export interface ProjectSummary {
+  environments: { env: EnvironmentName; version: number; publishedAt: Date | null }[];
+  /** 키 × 환경 매트릭스에서 값이 없는 칸 수 */
+  missing: number;
+  /** 그중 필수 키(예외 환경 제외)의 칸 수 */
+  missingRequired: number;
 }
 
 export interface RollbackInput {
@@ -167,6 +177,7 @@ export class PublishService {
               version,
               createdBy: input.actor,
               message,
+              keyNames: Object.keys(next).sort().join(','),
               createdAt,
             },
           });
@@ -192,6 +203,85 @@ export class PublishService {
       version: target.currentVersion,
       variables: await this.loadVariables(target, target.currentVersion),
     };
+  }
+
+  /**
+   * 프로젝트별 환경의 현재 버전·게시 시각과 누락 칸 수.
+   * 키 이름은 기록(env_versions.key_names)에서 읽고, 없는 예전 버전만 스냅샷을 연다.
+   */
+  async summarize(projects: string[]): Promise<Map<string, ProjectSummary>> {
+    const environments = await this.prisma.environment.findMany({
+      where: { project: { name: { in: projects } } },
+      select: {
+        id: true,
+        name: true,
+        currentVersion: true,
+        project: { select: { name: true, kind: true } },
+        versions: {
+          orderBy: { version: 'desc' },
+          take: 1,
+          select: { version: true, createdAt: true, keyNames: true },
+        },
+      },
+    });
+    const requiredKeys = await this.prisma.keySchema.findMany({
+      where: { project: { name: { in: projects } }, required: true },
+      select: { key: true, optionalIn: true, project: { select: { name: true } } },
+    });
+
+    const summaries = new Map<string, ProjectSummary>();
+    for (const project of projects) {
+      const rows = environments
+        .filter((row) => row.project.name === project)
+        .sort((a, b) => ENVIRONMENT_NAMES.indexOf(a.name) - ENVIRONMENT_NAMES.indexOf(b.name));
+      if (rows.length === 0) continue;
+
+      const keysByEnv = new Map<EnvironmentName, Set<string>>();
+      const envs: ProjectSummary['environments'] = [];
+      for (const row of rows) {
+        const latest = row.versions[0];
+        const current = latest?.version === row.currentVersion ? latest : undefined;
+        envs.push({
+          env: row.name,
+          version: row.currentVersion,
+          publishedAt: current?.createdAt ?? null,
+        });
+        const keys =
+          current?.keyNames != null
+            ? current.keyNames.split(',').filter(Boolean)
+            : Object.keys(
+                await this.loadVariables(
+                  {
+                    environmentId: row.id,
+                    project,
+                    kind: row.project.kind,
+                    env: row.name,
+                    currentVersion: row.currentVersion,
+                  },
+                  row.currentVersion,
+                ),
+              );
+        keysByEnv.set(row.name, new Set(keys));
+      }
+
+      const required = requiredKeys.filter((entry) => entry.project.name === project);
+      const allKeys = new Set([
+        ...[...keysByEnv.values()].flatMap((keys) => [...keys]),
+        ...required.map((entry) => entry.key),
+      ]);
+      let missing = 0;
+      let missingRequired = 0;
+      for (const [env, keys] of keysByEnv) {
+        for (const key of allKeys) {
+          if (keys.has(key)) continue;
+          missing++;
+          const entry = required.find((candidate) => candidate.key === key);
+          if (entry && !entry.optionalIn.split(',').includes(env)) missingRequired++;
+        }
+      }
+      summaries.set(project, { environments: envs, missing, missingRequired });
+    }
+    return summaries;
   }
 
   /** 버전 기록 (최신부터). 작성자 id를 GitHub 사용자명으로 바꿔 준다 */

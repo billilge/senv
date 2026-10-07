@@ -348,7 +348,19 @@
     "/api/v1/projects": {
       "get": {
         "operationId": "ProjectsController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "include",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "summary"
+              ],
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -1554,12 +1566,111 @@
           "projects": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Project"
+              "$ref": "#/components/schemas/ProjectListItem"
             }
           }
         },
         "required": [
           "projects"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectListItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "app",
+              "shared"
+            ]
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "local",
+                "development",
+                "production"
+              ]
+            }
+          },
+          "summary": {
+            "description": "include=summary일 때만 담는다",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProjectSummary"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "displayName",
+          "kind",
+          "environments"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectSummary": {
+        "type": "object",
+        "properties": {
+          "environments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "env": {
+                  "type": "string",
+                  "enum": [
+                    "local",
+                    "development",
+                    "production"
+                  ]
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "publishedAt": {
+                  "nullable": true,
+                  "type": "string",
+                  "description": "ISO 8601 시각"
+                }
+              },
+              "required": [
+                "env",
+                "version",
+                "publishedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "missing": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "키 × 환경 매트릭스에서 값이 없는 칸 수"
+          },
+          "missingRequired": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "그중 필수 키의 칸 수"
+          }
+        },
+        "required": [
+          "environments",
+          "missing",
+          "missingRequired"
         ],
         "additionalProperties": false
       },

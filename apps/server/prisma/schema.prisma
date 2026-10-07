@@ -151,6 +151,8 @@ model EnvironmentVersion {
   /// 게시한 사용자 또는 토큰 식별자. 사용자가 지워져도 기록은 남도록 외래 키를 걸지 않는다
   createdBy     String      @map("created_by") @db.VarChar(64)
   message       String      @db.VarChar(500)
+  /// 이 버전의 키 이름 목록(쉼표로 구분). 값은 담지 않는다. 목록 요약에 쓰고, 없으면 스냅샷에서 읽는다
+  keyNames      String?     @map("key_names") @db.Text
   createdAt     DateTime    @map("created_at") @db.DateTime(3)
   environment   Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
 
