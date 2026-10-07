@@ -1,0 +1,44 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum ProjectKind {
+  app
+  shared
+}
+
+/// 환경은 세 개로 고정 (PRD 5.1)
+enum EnvironmentName {
+  local
+  development
+  production
+}
+
+model Project {
+  id           String        @id @default(uuid(7)) @db.Char(36)
+  /// 소문자·숫자·하이픈, 32자 이하. R2 경로와 CLI 인자에 그대로 쓴다
+  name         String        @unique @db.VarChar(32)
+  displayName  String        @map("display_name") @db.VarChar(100)
+  kind         ProjectKind   @default(app)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  environments Environment[]
+
+  @@map("projects")
+}
+
+model Environment {
+  id        String          @id @default(uuid(7)) @db.Char(36)
+  projectId String          @map("project_id") @db.Char(36)
+  name      EnvironmentName
+  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+  @@map("environments")
+}

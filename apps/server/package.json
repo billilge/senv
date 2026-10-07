@@ -4,17 +4,22 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "generate": "prisma generate",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
-    "test": "vitest run --passWithNoTests",
+    "test": "prisma generate && vitest run --passWithNoTests",
+    "test:unit": "prisma generate && vitest run --project unit",
+    "test:int": "prisma generate && vitest run --project integration",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "prisma generate && tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1147.0",
     "@nestjs/common": "12.1.2",
     "@nestjs/core": "12.1.2",
     "@nestjs/platform-express": "12.1.2",
+    "@prisma/adapter-mariadb": "7.10.0",
+    "@prisma/client": "7.10.0",
     "@senv/core": "workspace:*",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
@@ -24,7 +29,10 @@
     "@nestjs/testing": "12.1.2",
     "@senv/config": "workspace:*",
     "@swc/core": "1.16.13",
+    "@testcontainers/mysql": "12.2.0",
     "@types/node": "^24.19.1",
+    "prisma": "7.10.0",
+    "testcontainers": "12.2.0",
     "typescript": "6.0.3",
     "unplugin-swc": "2.0.0",
     "vitest": "5.0.3"
