@@ -1,7 +1,14 @@
 import { Body, Controller, Get, HttpCode, Inject, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiCookieAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { AllowPending, CurrentUser, Public } from '../http/access.js';
 import { ApiProblem } from '../http/api-error.js';
+import {
+  apiErrorSchema,
+  deviceAuthorizationSchema,
+  tokenPairSchema,
+  userSchema,
+} from '../http/api-schemas.js';
 import { ApiTokenService, type TokenPair } from './api-token-service.js';
 import type { UserView } from './auth-service.js';
 import { type DeviceAuthorization, DeviceAuthService } from './device-auth-service.js';
@@ -21,6 +28,10 @@ const POLL_MESSAGES = {
   expired_token: '코드가 만료되었습니다. senv login을 다시 실행하세요',
 } as const;
 
+@ApiTags('auth')
+@ApiBearerAuth()
+@ApiCookieAuth()
+@ApiResponse({ status: 'default', description: '오류', standardSchema: apiErrorSchema })
 @Controller('api/v1')
 export class AuthController {
   constructor(
@@ -30,6 +41,7 @@ export class AuthController {
 
   @Get('me')
   @AllowPending()
+  @ApiResponse({ status: 200, standardSchema: userSchema })
   me(@CurrentUser() user: UserView): UserView {
     return user;
   }
@@ -37,6 +49,7 @@ export class AuthController {
   @Post('auth/device')
   @Public()
   @HttpCode(200)
+  @ApiResponse({ status: 200, standardSchema: deviceAuthorizationSchema })
   startDeviceLogin(): Promise<DeviceAuthorization> {
     return this.device.start();
   }
@@ -44,6 +57,7 @@ export class AuthController {
   @Post('auth/device/token')
   @Public()
   @HttpCode(200)
+  @ApiResponse({ status: 200, standardSchema: tokenPairSchema })
   async pollDeviceLogin(
     @Body({ schema: deviceTokenBody }) body: z.infer<typeof deviceTokenBody>,
   ): Promise<TokenPair> {
@@ -60,6 +74,7 @@ export class AuthController {
   /** 브라우저(대시보드)에서 CLI 로그인 코드를 승인하거나 거절한다 */
   @Post('auth/device/approve')
   @HttpCode(204)
+  @ApiResponse({ status: 204, description: '처리됨' })
   async decideDeviceLogin(
     @Body({ schema: approveBody }) body: z.infer<typeof approveBody>,
     @CurrentUser() user: UserView,
@@ -71,6 +86,7 @@ export class AuthController {
   @Post('auth/token/refresh')
   @Public()
   @HttpCode(200)
+  @ApiResponse({ status: 200, standardSchema: tokenPairSchema })
   refresh(@Body({ schema: refreshBody }) body: z.infer<typeof refreshBody>): Promise<TokenPair> {
     return this.tokens.refresh(body.refreshToken);
   }
@@ -79,6 +95,7 @@ export class AuthController {
   @Post('auth/token/revoke')
   @Public()
   @HttpCode(204)
+  @ApiResponse({ status: 204, description: '폐기됨' })
   async revoke(@Body({ schema: revokeBody }) body: z.infer<typeof revokeBody>): Promise<void> {
     await this.tokens.revoke(body.token);
   }

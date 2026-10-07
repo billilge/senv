@@ -1,8 +1,17 @@
 import { Body, Controller, Get, HttpCode, Inject, Param, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiCookieAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import type { UserView } from '../auth/auth-service.js';
 import { type DeliveredValues, DeliveryService } from '../delivery/delivery-service.js';
 import { AdminOnly, CurrentUser } from '../http/access.js';
+import {
+  apiErrorSchema,
+  deliveredValuesSchema,
+  environmentValuesSchema,
+  projectListSchema,
+  projectSchema,
+  publishResultSchema,
+} from '../http/api-schemas.js';
 import { type PublishResult, PublishService } from '../publishing/publish-service.js';
 import { ProjectsService, type ProjectView } from './projects-service.js';
 
@@ -28,6 +37,10 @@ interface EnvironmentValues {
   variables: Record<string, string>;
 }
 
+@ApiTags('projects')
+@ApiBearerAuth()
+@ApiCookieAuth()
+@ApiResponse({ status: 'default', description: '오류', standardSchema: apiErrorSchema })
 @Controller('api/v1/projects')
 export class ProjectsController {
   constructor(
@@ -37,6 +50,7 @@ export class ProjectsController {
   ) {}
 
   @Get()
+  @ApiResponse({ status: 200, standardSchema: projectListSchema })
   async list(): Promise<{ projects: ProjectView[] }> {
     return { projects: await this.projects.list() };
   }
@@ -45,16 +59,19 @@ export class ProjectsController {
   @Post()
   @AdminOnly()
   @HttpCode(201)
+  @ApiResponse({ status: 201, standardSchema: projectSchema })
   create(@Body({ schema: createProjectBody }) body: z.infer<typeof createProjectBody>) {
     return this.projects.create(body);
   }
 
   @Get(':project')
+  @ApiResponse({ status: 200, standardSchema: projectSchema })
   get(@Param('project') project: string): Promise<ProjectView> {
     return this.projects.get(project);
   }
 
   @Get(':project/envs/:env')
+  @ApiResponse({ status: 200, standardSchema: environmentValuesSchema })
   async current(
     @Param('project') project: string,
     @Param('env') env: string,
@@ -64,6 +81,7 @@ export class ProjectsController {
 
   /** senv pull·run이 받는 값 (공유 참조 해석 후) */
   @Get(':project/envs/:env/variables')
+  @ApiResponse({ status: 200, standardSchema: deliveredValuesSchema })
   variables(
     @Param('project') project: string,
     @Param('env') env: string,
@@ -73,6 +91,7 @@ export class ProjectsController {
 
   @Post(':project/envs/:env/versions')
   @HttpCode(201)
+  @ApiResponse({ status: 201, standardSchema: publishResultSchema })
   publish(
     @Param('project') project: string,
     @Param('env') env: string,

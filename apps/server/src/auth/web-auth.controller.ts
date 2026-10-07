@@ -1,5 +1,6 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { Controller, Get, HttpCode, Inject, Post, Query, Req, Res } from '@nestjs/common';
+import { ApiCookieAuth, ApiExcludeEndpoint, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { CookieOptions, Request, Response } from 'express';
 import { SERVER_CONFIG } from '../app/app-dependencies.js';
 import type { ServerConfig } from '../config/server-config.js';
@@ -21,6 +22,7 @@ const LOGIN_ERRORS: [new (...args: never[]) => Error, string][] = [
 ];
 
 /** 대시보드의 GitHub OAuth 로그인 (PRD 9.2) */
+@ApiTags('auth')
 @Controller()
 export class WebAuthController {
   constructor(
@@ -31,6 +33,7 @@ export class WebAuthController {
 
   @Get('auth/github')
   @Public()
+  @ApiExcludeEndpoint()
   start(@Query('next') next: string | undefined, @Res() response: Response): void {
     const state = randomBytes(32).toString('base64url');
     const flowCookie: CookieOptions = { ...this.cookieBase(), maxAge: LOGIN_FLOW_MS };
@@ -50,6 +53,7 @@ export class WebAuthController {
 
   @Get('auth/github/callback')
   @Public()
+  @ApiExcludeEndpoint()
   async callback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
@@ -83,6 +87,8 @@ export class WebAuthController {
   @Post('api/v1/auth/logout')
   @AllowPending()
   @HttpCode(204)
+  @ApiCookieAuth()
+  @ApiResponse({ status: 204, description: '로그아웃됨' })
   async logout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
