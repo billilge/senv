@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 문서 상태 | v1.0 (결정사항 확정) |
+| 문서 상태 | v1.7 (M1 구현 중, 진행 상황은 15장) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -165,19 +165,19 @@ flowchart LR
 | 실행 구성 | `main.ts`(HTTP), `worker.ts`(`NestFactory.createApplicationContext`) | 같은 코드와 이미지로 API와 워커를 나눠 띄운다 |
 | DB | 기존 MySQL 리소스 (MySQL 8.x), 전용 DB `stream_env` | 새 DB 리소스 없이 기존 운영·백업 체계를 쓴다 |
 | ORM·마이그레이션 | Prisma | 스키마 파일 하나로 타입과 마이그레이션을 관리한다. 행 잠금이 필요한 두 곳(게시, 작업 가져오기)만 raw SQL을 쓴다 |
-| 작업 큐 | MySQL `jobs` 테이블 + 폴링 워커 | Redis 없이 처리한다. `SELECT ... FOR UPDATE SKIP LOCKED`로 작업을 가져오고, 게시와 같은 트랜잭션에서 작업을 등록한다 (4.4) |
-| 예약 작업 | @nestjs/schedule | 드리프트 점검, 감사 로그 내보내기. MySQL `GET_LOCK`으로 중복 실행을 막는다 |
+| 작업 큐 | MySQL `jobs` 테이블 + 폴링 워커 (M2·M3) | Redis 없이 처리한다. `SELECT ... FOR UPDATE SKIP LOCKED`로 작업을 가져오고, 게시와 같은 트랜잭션에서 작업을 등록한다 (4.4). M1 worker에는 큐가 필요한 작업이 없어 처음 쓰는 단계에서 만든다 (결정 33) |
+| 예약 작업 | @nestjs/schedule | M1은 만료된 세션·토큰·디바이스 코드 정리(1시간마다). 이후 드리프트 점검, 감사 로그 내보내기. MySQL `GET_LOCK`으로 중복 실행을 막는다 |
 | 입력 검증·DTO | Zod + NestJS 12의 Standard Schema 검증(`StandardSchemaValidationPipe`) | `packages/core`의 Zod 스키마를 라우트 검증에 그대로 써서, 서버·대시보드·CLI가 같은 검증 규칙을 공유한다. 별도 연동 패키지가 필요 없다 |
 | API 문서·클라이언트 | @nestjs/swagger → `openapi.json` → openapi-typescript + openapi-fetch | 서버가 내보낸 OpenAPI 문서에서 대시보드·CLI용 타입 안전 클라이언트를 생성한다 |
-| 인증 | @nestjs/passport + passport-github2 (GitHub OAuth만) + 자체 세션·토큰 | GitHub 로그인만 Passport에 맡긴다. org 멤버십 확인, 대시보드 세션, CLI 토큰, 서비스 토큰, 디바이스 인증(RFC 8628)은 직접 구현한다 |
-| 권한 검사 | Nest Guard + 커스텀 데코레이터 | 예: `@RequireEnvPermission('write')`로 프로젝트 × 환경 권한을 확인한다 |
+| 인증 | GitHub OAuth(직접 만든 HTTP 클라이언트) + 자체 세션·토큰 | GitHub 호출은 토큰 교환, 사용자 조회, org 멤버십 조회 세 개뿐이라 Passport 없이 fetch로 부르고, 테스트에서는 가짜 클라이언트로 바꾼다. org 멤버십 확인, 대시보드 세션, CLI 토큰, 서비스 토큰, 디바이스 인증(RFC 8628)은 직접 구현한다 |
+| 권한 검사 | Nest Guard + 커스텀 데코레이터 | M1은 전역 `AuthGuard`와 접근 수준 데코레이터(`@Public`, `@AllowPending`, `@AdminOnly`). M2에서 `@RequireEnvPermission('write')`로 프로젝트 × 환경 권한을 확인한다 |
 | R2 접근 | `@aws-sdk/client-s3` | R2의 S3 호환 API를 쓴다. 버킷 한정 API 토큰 사용 |
 | 암호화 | Node.js 내장 `crypto` (AES-256-GCM) | 외부 의존 없이 봉투 암호화를 구현한다 |
 | 배포 대상 연동 | `core`의 `TargetProvider` 인터페이스 + 제공자 패키지(`target-coolify`) | 인프라별 코드를 패키지로 분리해, 다른 인프라는 패키지 추가로 붙인다 (8.1) |
-| 설정 | @nestjs/config + Zod | 부트스트랩 환경변수를 시작할 때 검증하고, 빠진 값이 있으면 기동하지 않는다 |
-| 로그 | nestjs-pino | JSON 구조 로그. Coolify 로그 화면에서 바로 본다 |
-| 헬스체크 | @nestjs/terminus | `/healthz`에서 MySQL·R2 연결을 확인한다 |
-| 속도 제한 | @nestjs/throttler | 로그인, 디바이스 코드 확인, 토큰 발급 경로 |
+| 설정 | Zod (`loadServerConfig`, worker는 `loadWorkerConfig`) | 부트스트랩 환경변수를 시작할 때 검증하고, 빠진 값이 있으면 기동하지 않는다. 오류 메시지는 직접 정해서 변수 이름만 담고 값은 담지 않는다 |
+| 로그 | Nest 기본 로거 (M1) | Coolify 로그 화면에서 본다. JSON 구조 로그(nestjs-pino)는 운영하며 필요해지면 붙인다 |
+| 헬스체크 | `/healthz` (직접 구현) | MySQL에 `SELECT 1`을 보내 확인한다. R2 상태는 실제 요청의 오류로 드러난다 |
+| 속도 제한 | @nestjs/throttler | 로그인, 디바이스 코드 확인, 토큰 발급 경로. 경로별 IP당 한도는 결정 38 |
 | 대시보드 제공 | @nestjs/serve-static | 대시보드 빌드 결과를 같은 도메인에서 제공한다 |
 
 인증에 Better Auth를 쓰지 않는 이유: NestJS 연동이 커뮤니티 패키지이고, 앱 전체의 body parser를 꺼야 한다. CLI 토큰과 서비스 토큰은 어차피 프로젝트 × 환경 범위를 담아 직접 만들어야 하므로, 토큰을 한 방식(불투명 랜덤 값을 SHA-256 해시로 저장)으로 통일한다. 그러면 DB에서 지우는 즉시 폐기된다.
@@ -205,9 +205,10 @@ flowchart LR
 | 빌드 | Vite + React (SPA) | 서버가 정적 파일로 같이 제공한다. 같은 도메인이라 쿠키 세션을 그대로 쓴다 |
 | 라우팅 | TanStack Router | 타입 안전 라우팅 |
 | 서버 상태 | TanStack Query + `packages/api-client` | 캐시, 재시도, 낙관적 업데이트 |
-| 디자인 시스템 | Primer (`@primer/react`, `@primer/primitives`, `@primer/octicons-react`) | GitHub 로그인과 어울리는 GitHub 스타일 UI. 라이트·다크 테마와 접근성이 기본 제공된다. 별도 CSS 프레임워크 없이 Primer 컴포넌트와 디자인 토큰(CSS 변수)으로 스타일을 맞춘다 |
-| 매트릭스 표 | Primer `DataTable` + TanStack Table(헤드리스) | 화면은 Primer로 그리고, 필터·정렬·고정 열 같은 표 로직만 TanStack Table에 맡긴다 |
-| diff 표시 | `diff` (jsdiff) | 게시 전 변경 확인, 버전 비교 |
+| 디자인 시스템 | Primer (`@primer/react`, `@primer/primitives`, `@primer/octicons-react`) | GitHub 로그인과 어울리는 GitHub 스타일 UI. 다크 모드만 지원한다(결정 35). 접근성이 기본 제공된다. 별도 CSS 프레임워크 없이 Primer 컴포넌트와 디자인 토큰(CSS 변수)으로 스타일을 맞춘다 |
+| 매트릭스 표 | HTML 표 + Primer 디자인 토큰(CSS Modules) | M1 표에는 필터·정렬이 없어 직접 그린다. 필터·정렬·고정 열이 필요해지면 Primer `DataTable` + TanStack Table을 쓴다 |
+| diff 표시 | `core`의 `diffVariables` (M1) | M1 게시 확인은 값 없이 키 이름만 보여준다. 값 비교(jsdiff)는 M2 버전 비교와 함께 |
+| 목업 모드 | `pnpm dev:mock` (브라우저 안의 가짜 API) | 서버·DB·GitHub 없이 모든 화면을 확인한다. 프로덕션 빌드에는 들어가지 않는다 (결정 37) |
 
 **CLI**
 
@@ -226,13 +227,13 @@ flowchart LR
 | 모노레포 | pnpm workspaces + Turborepo | 패키지 간 의존 관리와 빌드 캐시. NestJS의 자체 모노레포 모드는 쓰지 않는다. 대시보드와 CLI가 Nest 앱이 아니어서, 서버도 워크스페이스 앱 하나로 둔다 |
 | 공유 패키지 빌드 | tsup (ESM) | 서버(NestJS 12)·대시보드·CLI가 모두 ESM이다 |
 | 서버 빌드 | `tsc` (ESM, `nodenext`) | Nest CLI 없이 빌드한다. Nest CLI 명령(generate 등)은 Node 24.15 이상이 필요하다 |
-| 테스트 | Vitest(+ unplugin-swc), Testcontainers(MySQL), supertest, Playwright | 단위, DB 통합, API E2E, 대시보드 E2E. Nest의 데코레이터 메타데이터 때문에 서버 테스트는 SWC로 변환한다 |
+| 테스트 | Vitest(+ unplugin-swc), Testcontainers(MySQL), supertest, Testing Library, Playwright | 단위, DB 통합, API E2E, 대시보드 화면, 브라우저 E2E. Nest의 데코레이터 메타데이터 때문에 서버 테스트는 SWC로 변환한다 |
 | Coolify 계약 테스트 | 실제 응답을 녹화한 픽스처 | Coolify 버전이 바뀔 때 어댑터 회귀를 잡는다 |
-| 로컬 개발 | `docker-compose.dev.yml`: MySQL 8, MinIO(R2 대용) | R2 없이 S3 호환 저장소로 개발한다 |
+| 로컬 개발 | 대시보드는 `pnpm dev:mock`, 서버 테스트는 Testcontainers MySQL + 메모리 저장소 | R2·MinIO 없이 개발·테스트한다. 실제 R2 어댑터는 얇게 두고 자동 테스트하지 않는다 |
 | 린트·포맷 | Biome | 린트와 포맷을 한 도구로 처리한다. 서버에서는 `useImportType` 규칙을 끈다. Nest DI가 런타임 타입 메타데이터를 쓰기 때문이다 |
 | CI | GitHub Actions | 테스트, CLI를 GitHub Packages로 릴리즈 |
 | 버전 관리 | Changesets | CLI 버전과 변경 기록 |
-| 이미지 빌드 | `turbo prune server --docker` + 멀티 스테이지 Dockerfile | 서버에 필요한 패키지만 담아 이미지를 줄인다 |
+| 이미지 빌드 | `turbo prune @senv/server @senv/dashboard --docker` + 멀티 스테이지 Dockerfile | 서버와 대시보드에 필요한 패키지만 담는다. 대시보드 빌드는 서버 이미지에 함께 들어간다 |
 
 ### 4.3 모노레포 구조
 
@@ -242,25 +243,30 @@ stream-env-control/
     server/                  # NestJS
       src/
         main.ts              # HTTP 서버 진입점
-        worker.ts            # 작업 워커 진입점
-        modules/             # auth, members, projects, schema, variables,
-                             # crypto, storage, audit, targets, jobs, health
+        worker.ts            # 예약 작업 워커 진입점 (M1: 만료 기록 정리)
+        app/                 # 모듈 조립(AppModule.register), 대시보드 정적 제공
+        auth/  users/        # GitHub 로그인, 세션, 토큰, 디바이스 로그인 / 사용자 관리
+        projects/  publishing/  delivery/  snapshots/
+        crypto/  storage/  database/  maintenance/  worker/
+        http/                # 인증 가드, 오류 형식, 속도 제한, API 스키마
+        config/  health/  openapi/
+        generated/prisma/    # prisma generate 결과 (커밋하지 않음)
       prisma/
         schema.prisma        # MySQL 스키마
         migrations/
       openapi.json           # 빌드 시 생성, 커밋 대상
-    dashboard/               # Vite + React
-    cli/                     # senv
+    dashboard/               # Vite + React + Primer (src/mock: 목업 모드)
+    cli/                     # senv (@billilge/senv)
   packages/
-    core/                    # Zod 스키마, dotenv 파서·출력기, 권한·버전 공통 타입,
-                             # 배포 대상 제공자 인터페이스와 동기화 계획 계산
-    target-coolify/          # Coolify 제공자 (Coolify API 어댑터)
-    target-testkit/          # 제공자 계약 테스트, 메모리 제공자
+    core/                    # dotenv 파서·출력기, 키 검증, 공유 참조, diff·변경 집합, 이름 규칙
     api-client/              # openapi.json에서 생성한 타입 + fetch 클라이언트
-    config/                  # 공유 tsconfig, Biome 설정
+    config/                  # 공유 tsconfig
+    target-coolify/          # (M3) Coolify 제공자
+    target-testkit/          # (M3) 제공자 계약 테스트, 메모리 제공자
+  e2e/                       # 실제 서버로 CLI 전체 흐름, 브라우저 E2E
   Dockerfile                 # server 이미지 (dashboard 빌드 포함)
   docker-compose.yml         # Coolify 배포용: api, worker
-  docker-compose.dev.yml     # 로컬 개발용: MySQL, MinIO
+  biome.json
   pnpm-workspace.yaml
   turbo.json
   package.json
@@ -906,7 +912,7 @@ CLI·CI는 `Authorization: Bearer <token>` 헤더를, 대시보드는 세션 쿠
 | **M3 배포 대상 연동** | 제공자 인터페이스(`core`)와 `target-testkit`, Coolify 제공자, 연결·매핑, 초기 가져오기, diff 미리보기, 게시 시 자동 동기화, 재시작·재배포, 드리프트 감지 | 모든 Coolify 앱이 대시보드 값과 일치하고 수동 붙여넣기가 없다. 메모리 제공자로 전체 동기화 흐름 테스트가 통과한다 |
 | **M4 확장** | production 변경 2인 승인, GitHub org 웹훅으로 즉시 권한 회수, GitHub 팀 → 역할 템플릿 매핑, Slack 알림, Coolify Service 지원, 다른 배포 대상 제공자(AWS 등), 시크릿 교체 알림, 오프라인 캐시, `senv sync` | 항목별로 따로 결정 |
 
-일정은 담당 인원이 정해진 뒤 단계별로 확정한다.
+일정은 담당 인원이 정해진 뒤 단계별로 확정한다. 현재 M1을 구현하고 있다 (15장).
 
 ---
 
@@ -973,6 +979,10 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 32 | 대시보드 테스트 | Vitest + Testing Library. 실제 브라우저 E2E는 배포 단계에서 핵심 흐름 하나 | 4.2 |
 | 33 | M1 worker | 1시간마다 만료된 세션·토큰·디바이스 코드를 지운다(`GET_LOCK`으로 중복 방지). `jobs` 큐는 처음 쓰는 M2·M3에서 만든다 | 4.4, 4.5 |
 | 34 | 브라우저 E2E 로그인 | DB에 사용자·세션을 만들고 `senv_session` 쿠키를 넣는다. OAuth 흐름은 서버 통합 테스트(가짜 GitHub)가 맡는다 | 4.2 |
+| 35 | 대시보드 테마 | 다크 모드만 지원한다. 배경은 GitHub 다크 배경색(`--bgColor-default`, `#0d1117`) | 4.2 |
+| 36 | 대시보드 레이아웃 | GitHub 저장소 화면형: 어두운 헤더(앱 이름, 사용자 메뉴) + 아이콘·개수가 붙은 탭(UnderlineNav), 최대 1280px 가운데 정렬 본문, 테두리 있는 목록 상자, GitHub식 표. 새 프로젝트는 대화상자, 로그인·CLI 승인은 가운데 카드 | 7.1 |
+| 37 | 디자인 확인용 목업 모드 | `pnpm dev:mock`: 브라우저 안의 가짜 API(예시 데이터, 게시·검증·사용자 관리 규칙 흉내)와 역할 전환 도구. 프로덕션 빌드에서는 빠진다 | 4.2 |
+| 38 | 속도 제한 수치 | 경로별 IP당 1분 한도: GitHub 로그인 20, 디바이스 로그인 시작 10, CLI 로그인 승인 10, 디바이스 폴링·refresh 60. 넘으면 429와 `Retry-After`. 클라이언트 IP는 `TRUST_PROXY`(기본 1, Traefik) 단계만큼 `X-Forwarded-For`를 믿어 읽는다 | 4.2, 9.1 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
@@ -989,6 +999,65 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 - [ ] 운영 중인 Coolify 버전과 env API 필드
 - [ ] R2 버킷 `stream-env`, `stream-env-backups`와 버킷 한정 API 토큰 생성
 - [ ] KEK 생성, 관리자 2명이 서버 밖에 따로 보관
+
+---
+
+## 15. 구현 현황
+
+기준: 2026-10-08, 브랜치 `feat/m1-core`, 커밋 70개 (아직 push하지 않음). 모든 커밋은 `pnpm verify`(Biome, 타입 검사, 빌드, 테스트)를 통과한 뒤에 만들었다.
+
+### 15.1 테스트
+
+| 패키지 | 테스트 수 | 범위 |
+| --- | --- | --- |
+| `packages/core` | 142 | dotenv 읽기·쓰기, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙 |
+| `apps/server` | 288 | 단위 + Testcontainers MySQL 통합: 암호화, 게시, 인증, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, worker |
+| `apps/cli` | 87 | 명령별 동작 (가짜 API) |
+| `packages/api-client` | 9 | 클라이언트 생성, 오류 변환 |
+| `apps/dashboard` | 58 | Testing Library 화면 흐름, 목업 서버 |
+| `e2e` | 1 | 실제 서버 + CLI 전체 흐름 (login → whoami → init → pull → run → logout) |
+| 합계 | 585 | |
+
+R2(S3) 어댑터와 실제 GitHub HTTP 클라이언트는 자동 테스트하지 않는다. 메모리 저장소와 가짜 GitHub 클라이언트로 서비스를 테스트한다.
+
+### 15.2 M1에서 끝난 것
+
+| 영역 | 내용 |
+| --- | --- |
+| 모노레포 | pnpm + Turborepo, Biome, `pnpm verify`, Prisma 코드 생성을 turbo `generate` 작업으로 분리 |
+| core | dotenv 파서·출력기, 키 이름 검증, `${shared.KEY}` 참조 해석, diff·변경 집합(`applyChangeSet`, `createChangeSet`), 이름 규칙 |
+| 서버: 저장·암호화 | 봉투 암호화(스냅샷마다 새 DEK, KEK로 감쌈, 저장 위치를 AAD로 묶음), KEK 교체용 다시 감싸기, R2 스냅샷 저장소 |
+| 서버: 값 | 프로젝트·환경(세 개 고정)·공유 그룹, 게시(기준 버전으로 충돌 검사, 키·참조 검증, 참조 중인 공유 키 삭제 막기, 스냅샷과 버전 포인터를 같은 트랜잭션에서), 공유 참조를 풀어서 전달 |
+| 서버: 인증 | GitHub OAuth(org 활성 멤버만), 첫 관리자 지정, 승인 대기, 대시보드 세션(7일, 쓸 때 연장), CLI 디바이스 로그인(RFC 8628), access·refresh 토큰(회전, 재사용 감지 시 전체 폐기), CSRF Origin 검사, 속도 제한 |
+| 서버: 그 밖 | 사용자 관리 API, OpenAPI 문서 생성, `{ code, message, details }` 오류 형식, `/healthz`, 대시보드 정적 제공, worker(1시간마다 만료 기록 정리) |
+| CLI | `login`·`logout`·`whoami`·`init`·`pull`·`run`·`list`·`get`, OS 키체인(없으면 권한 600 파일), 토큰 자동 갱신(프로세스 간 파일 잠금), `.gitignore` 등록 확인 |
+| 대시보드 | 로그인, 승인 대기, CLI 로그인 승인, 프로젝트 목록·만들기, 키 × 환경 매트릭스(값 가림, 30초 보기, 누락, 같은 값 표시), 환경별 편집·게시(`.env` 붙여넣기, 409 충돌이면 최신 값에 내 변경을 다시 얹기, 422 문제 표시), 사용자 관리, 다크 모드 GitHub 스타일, 목업 모드 |
+
+### 15.3 M1에서 남은 것
+
+| 작업 | 상태 |
+| --- | --- |
+| Dockerfile·`docker-compose.yml`(api, worker), api 시작 시 `prisma migrate deploy` | 진행 중 |
+| 브라우저 E2E (Playwright, 결정 34) | 남음 |
+| GitHub Actions: 검사(CI), CLI를 GitHub Packages로 배포 | 남음 |
+| 대시보드 화면 요구 중 아직 없는 것: 프로젝트 목록의 최근 게시·누락 키 수(7.1), GitHub 사용자명으로 역할 미리 지정(7.1), 환경 간 복사(7.2), `.env` 붙여넣기의 삭제 후보 표시(7.2) | M1에 넣을지 확인 필요 |
+| 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관) | 담당자 작업 |
+
+### 15.4 PRD 원안과 다르게 구현한 것
+
+| 항목 | 원안 | 구현 | 이유 |
+| --- | --- | --- | --- |
+| GitHub 로그인 | Passport + passport-github2 | 직접 만든 GitHub HTTP 클라이언트 | 필요한 호출이 세 개뿐이고, 테스트에서 가짜 클라이언트로 바꾸기 쉽다 |
+| 설정 검증 | @nestjs/config + Zod | Zod만 (`loadServerConfig`) | 오류 메시지를 직접 정해 비밀 값이 새지 않게 한다 |
+| 로그 | nestjs-pino | Nest 기본 로거 | M1 범위를 줄였다. 필요해지면 붙인다 |
+| 헬스체크 | @nestjs/terminus, MySQL·R2 확인 | 직접 구현, MySQL만 확인 | R2 상태는 실제 요청의 오류로 드러난다 |
+| 서버 모듈 구성 | 기능별 Nest 모듈(AuthModule 등) | `AppModule.register()` 하나에서 팩토리로 조립. 서비스는 Nest에 묶이지 않은 클래스 | 서비스를 Nest 없이 테스트한다 |
+| 작업 큐 | M1부터 `jobs` 테이블 | M2·M3에서 만든다 | M1 worker에는 큐가 필요한 작업이 없다 (결정 33) |
+| 매트릭스 표 | Primer DataTable + TanStack Table | HTML 표 + Primer 토큰 | M1 표에는 필터·정렬이 없다 |
+| diff 표시 | jsdiff | `core`의 `diffVariables` (키 이름만) | M1 게시 확인은 값을 보여주지 않는다 |
+| 로컬 개발 | `docker-compose.dev.yml` (MySQL, MinIO) | Testcontainers MySQL + 메모리 저장소, 대시보드 목업 모드 | 저장소 I/O는 자동 테스트하지 않기로 했다 |
+| 테마 | 라이트·다크 | 다크 전용 | 결정 35 |
+| 이미지 빌드 | `turbo prune server` | `turbo prune @senv/server @senv/dashboard` | 대시보드 빌드도 같은 이미지에 넣는다 |
 
 ---
 
