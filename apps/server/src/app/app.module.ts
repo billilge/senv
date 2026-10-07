@@ -6,6 +6,7 @@ import { AuthService } from '../auth/auth-service.js';
 import { DeviceAuthService } from '../auth/device-auth-service.js';
 import { GitHubClient } from '../auth/github-client.js';
 import { SessionService } from '../auth/session-service.js';
+import { WebAuthController } from '../auth/web-auth.controller.js';
 import type { ServerConfig } from '../config/server-config.js';
 import { DeliveryService } from '../delivery/delivery-service.js';
 import { PrismaClient } from '../generated/prisma/client.js';
@@ -30,7 +31,7 @@ export class AppModule {
   static register(deps: AppDependencies): DynamicModule {
     return {
       module: AppModule,
-      controllers: [HealthController, AuthController],
+      controllers: [HealthController, AuthController, WebAuthController],
       providers: [
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: SERVER_CONFIG, useValue: deps.config },
