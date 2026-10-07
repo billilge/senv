@@ -745,7 +745,7 @@ export interface DesiredVariable {
 | `readVariables` | `GET /applications/{uuid}/envs` |
 | `applyPlan` | 추가·변경은 `PATCH /applications/{uuid}/envs/bulk`로 한 번에, 삭제는 키별 env 삭제 API |
 | `runAction('restart')` | `POST /applications/{uuid}/restart` |
-| `runAction('redeploy')` | `POST /deploy?uuid={uuid}` |
+| `runAction('redeploy')` | `GET /deploy?uuid={uuid}` (결정 51) |
 | `capabilities` | `readValues`, `deleteKeys`, `restart`·`redeploy`, `buildTimeFlag` 모두 지원 |
 
 **속성 대응**
@@ -995,6 +995,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 48 | `.env` 붙여넣기 삭제 후보 | 붙여넣는 즉시 추가·변경·삭제 후보로 나눠 보여준다. 삭제 후보(붙여넣은 내용에 없는 기존 키)는 기본으로 고르지 않고, 고른 것만 지운다 | 7.2 |
 | 49 | CLI 쓰기·점검 명령 동작 | `status`는 pull 파일 머리글의 버전을 서버와 견준다. `diff`는 키 이름만 보여준다(+ 서버에만, - 로컬에만, ~ 값이 다름). `set`·`push`는 바뀐 키 이름을 보여주고 확인을 받으며 `--yes`로 생략할 수 있지만, production은 언제나 프로젝트 이름을 다시 입력해야 한다. `push`는 서버의 공유 참조를 푼 값과 달라진 키만 보내 `${shared.KEY}` 참조를 덮지 않고, 파일에 없는 키는 `--prune`일 때만 지운다. `export`는 dotenv·json·shell·yaml이고 노출 검사는 pull과 같다. `doctor`는 문제(✗)가 있으면 1로 끝나고 경고(⚠)는 0 | 6.2, 6.3 |
 | 50 | 제공자 인터페이스 형태 | `packages/core`는 zod에 의존하지 않는다. 제공자는 연결·매핑 옵션 폼을 필드 명세(text·url·secret·boolean)로 내주고 `parseConnection`·`parseMappingOptions`로 직접 검증한다. 동기화 계획, 반영 후 동작 판단, 키 필터(`*` 패턴)는 core의 순수 함수다. 원격 값을 읽을 수 없는 제공자를 위한 값 해시는 서버에서 계산한다(core는 브라우저에서도 쓴다) | 8.1, 8.2 |
+| 51 | Coolify API 대응 | Coolify v4 최신 API 필드 이름(`is_buildtime`, `is_runtime`, `is_literal`, `is_multiline`, `is_preview`)을 쓰고, 모든 변수는 `is_literal`을 켠다. 추가·변경은 `PATCH .../envs/bulk` 한 번, 삭제는 변수 uuid로 하나씩, 재시작은 `POST .../restart`, 재배포는 API 문서대로 `GET /deploy?uuid=`. 연결 주소의 끝 `/`·`/api/v1`은 정리해서 저장한다. Preview 옵션이 켜지면 같은 값을 preview 변수로도 넣고, 읽을 때는 preview가 아닌 변수만 본다. 테스트는 Coolify API 응답 모양을 흉내 낸 가짜 서버로 한다 | 8.5 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
