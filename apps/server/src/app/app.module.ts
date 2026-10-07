@@ -1,5 +1,6 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ApiTokenService } from '../auth/api-token-service.js';
 import { AuthController } from '../auth/auth.controller.js';
 import { AuthService } from '../auth/auth-service.js';
@@ -12,6 +13,7 @@ import { DeliveryService } from '../delivery/delivery-service.js';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { HealthController } from '../health/health.controller.js';
 import { AuthGuard } from '../http/auth.guard.js';
+import { RATE_LIMITS } from '../http/rate-limit.js';
 import { ProjectsController } from '../projects/projects.controller.js';
 import { ProjectsService } from '../projects/projects-service.js';
 import { PublishService } from '../publishing/publish-service.js';
@@ -33,6 +35,8 @@ export class AppModule {
   static register(deps: AppDependencies): DynamicModule {
     return {
       module: AppModule,
+      // 한도는 경로마다 @RateLimit으로 정한다. 여기 기본값은 쓰이지 않는다
+      imports: [ThrottlerModule.forRoot({ throttlers: [RATE_LIMITS.tokenIssue] })],
       controllers: [
         HealthController,
         AuthController,

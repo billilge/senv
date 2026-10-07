@@ -55,6 +55,15 @@ describe('loadServerConfig', () => {
     expect(loadServerConfig(validEnv({ PORT: '8080' })).port).toBe(8080);
   });
 
+  it('TRUST_PROXY는 믿을 프록시 단계 수다. 비우면 1 (Coolify의 Traefik)', () => {
+    expect(loadServerConfig(validEnv()).trustProxyHops).toBe(1);
+    expect(loadServerConfig(validEnv({ TRUST_PROXY: '2' })).trustProxyHops).toBe(2);
+    expect(loadServerConfig(validEnv({ TRUST_PROXY: '0' })).trustProxyHops).toBe(0);
+    expect(problemsOf(validEnv({ TRUST_PROXY: 'true' }))).toEqual([
+      'TRUST_PROXY: 0~5 사이의 숫자여야 합니다',
+    ]);
+  });
+
   it('빠진 변수를 한 번에 모두 알려준다', () => {
     const problems = problemsOf({}).join('\n');
     for (const name of [

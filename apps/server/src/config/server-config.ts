@@ -22,6 +22,8 @@ export interface ServerConfig {
   };
   /** 로그인하자마자 관리자가 되는 GitHub 사용자명 (소문자) */
   bootstrapAdmins: string[];
+  /** 앞에 있는 프록시 수. 속도 제한이 X-Forwarded-For에서 클라이언트 IP를 읽을 때 쓴다 */
+  trustProxyHops: number;
 }
 
 /** 부트스트랩 환경변수 문제. 변수 이름과 이유만 담고 값은 담지 않는다 */
@@ -53,6 +55,12 @@ const envSchema = z.object({
     .trim()
     .refine((value) => value === '' || (/^\d{1,5}$/.test(value) && Number(value) <= 65535), {
       error: '1~65535 사이의 숫자여야 합니다',
+    }),
+  TRUST_PROXY: z
+    .string()
+    .trim()
+    .refine((value) => value === '' || /^[0-5]$/.test(value), {
+      error: '0~5 사이의 숫자여야 합니다',
     }),
   APP_URL: required().refine(isAppUrl, {
     error: 'https 주소여야 합니다 (로컬 개발은 http://localhost 허용)',
@@ -124,6 +132,7 @@ export function loadServerConfig(env: Record<string, string | undefined>): Serve
       org: vars.GITHUB_ORG,
     },
     bootstrapAdmins: vars.SENV_BOOTSTRAP_ADMINS.map((login) => login.toLowerCase()),
+    trustProxyHops: vars.TRUST_PROXY === '' ? 1 : Number(vars.TRUST_PROXY),
   };
 }
 

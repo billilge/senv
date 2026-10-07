@@ -28,6 +28,8 @@ export async function createTestApp(
     sessionSecret: 'x'.repeat(32),
     github: { clientId: 'test-client-id', clientSecret: 'test-client-secret', org: 'billilge' },
     bootstrapAdmins: options.bootstrapAdmins ?? ['admin'],
+    // 테스트는 X-Forwarded-For로 클라이언트 IP를 바꿔 가며 보낸다
+    trustProxyHops: 1,
   };
 
   const app: INestApplication = await createApp(

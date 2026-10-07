@@ -5,6 +5,7 @@ import type { CookieOptions, Request, Response } from 'express';
 import { SERVER_CONFIG } from '../app/app-dependencies.js';
 import type { ServerConfig } from '../config/server-config.js';
 import { AllowPending, Public, SESSION_COOKIE } from '../http/access.js';
+import { RateLimit } from '../http/rate-limit.js';
 import { AuthService, NotOrgMemberError, UserDisabledError } from './auth-service.js';
 import { GitHubAuthError, GitHubUnavailableError } from './github-client.js';
 import { SessionService } from './session-service.js';
@@ -33,6 +34,7 @@ export class WebAuthController {
 
   @Get('auth/github')
   @Public()
+  @RateLimit('webLogin')
   @ApiExcludeEndpoint()
   start(@Query('next') next: string | undefined, @Res() response: Response): void {
     const state = randomBytes(32).toString('base64url');
@@ -53,6 +55,7 @@ export class WebAuthController {
 
   @Get('auth/github/callback')
   @Public()
+  @RateLimit('webLogin')
   @ApiExcludeEndpoint()
   async callback(
     @Query('code') code: string | undefined,

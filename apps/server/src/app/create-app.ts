@@ -15,6 +15,8 @@ export async function createApp(
     logger: options.logger === false ? false : ['error', 'warn', 'log'],
   });
   app.disable('x-powered-by');
+  // Coolify의 Traefik 뒤에서 실제 클라이언트 IP를 읽는다 (속도 제한)
+  app.set('trust proxy', deps.config.trustProxyHops);
   app.use(cookieParser());
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalPipes(

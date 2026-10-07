@@ -985,6 +985,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 - [ ] 이 앱이 기존 MySQL에 Coolify 내부 네트워크로 접속되는지
 - [ ] 기존 MySQL의 예약 백업에 `stream_env`를 넣을 수 있는지
 - [ ] `worker`가 Coolify API를 부를 내부 주소
+- [ ] DNS에 Cloudflare 프록시를 켤지. 켜면 Traefik 뒤에서 클라이언트 IP가 맞게 잡히는지(`TRUST_PROXY`) 확인한다 (속도 제한)
 - [ ] 운영 중인 Coolify 버전과 env API 필드
 - [ ] R2 버킷 `stream-env`, `stream-env-backups`와 버킷 한정 API 토큰 생성
 - [ ] KEK 생성, 관리자 2명이 서버 밖에 따로 보관

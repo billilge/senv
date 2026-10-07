@@ -9,6 +9,7 @@ import {
   tokenPairSchema,
   userSchema,
 } from '../http/api-schemas.js';
+import { RateLimit } from '../http/rate-limit.js';
 import { ApiTokenService, type TokenPair } from './api-token-service.js';
 import type { UserView } from './auth-service.js';
 import { type DeviceAuthorization, DeviceAuthService } from './device-auth-service.js';
@@ -48,6 +49,7 @@ export class AuthController {
 
   @Post('auth/device')
   @Public()
+  @RateLimit('deviceStart')
   @HttpCode(200)
   @ApiResponse({ status: 200, standardSchema: deviceAuthorizationSchema })
   startDeviceLogin(): Promise<DeviceAuthorization> {
@@ -56,6 +58,7 @@ export class AuthController {
 
   @Post('auth/device/token')
   @Public()
+  @RateLimit('tokenIssue')
   @HttpCode(200)
   @ApiResponse({ status: 200, standardSchema: tokenPairSchema })
   async pollDeviceLogin(
@@ -73,6 +76,7 @@ export class AuthController {
 
   /** 브라우저(대시보드)에서 CLI 로그인 코드를 승인하거나 거절한다 */
   @Post('auth/device/approve')
+  @RateLimit('deviceApprove')
   @HttpCode(204)
   @ApiResponse({ status: 204, description: '처리됨' })
   async decideDeviceLogin(
@@ -85,6 +89,7 @@ export class AuthController {
 
   @Post('auth/token/refresh')
   @Public()
+  @RateLimit('tokenIssue')
   @HttpCode(200)
   @ApiResponse({ status: 200, standardSchema: tokenPairSchema })
   refresh(@Body({ schema: refreshBody }) body: z.infer<typeof refreshBody>): Promise<TokenPair> {
