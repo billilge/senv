@@ -4,7 +4,7 @@
 | --- | --- |
 | 문서 상태 | v1.0 (결정사항 확정) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -358,6 +358,7 @@ flowchart LR
 | `APP_URL` | 대시보드 기준 주소 `https://senv.stream.billilge.site`. OAuth 콜백 주소를 만들 때 쓴다 |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth App 자격 증명 |
 | `GITHUB_ORG` | 로그인 기준이 되는 GitHub 조직 이름 (`billilge`) |
+| `SENV_BOOTSTRAP_ADMINS` | 로그인하자마자 관리자가 되는 GitHub 사용자명 목록 (쉼표 구분). 첫 관리자를 정하는 데 쓴다 |
 
 KEK를 잃으면 모든 스냅샷을 복구할 수 없다. 관리자 2명이 각자 비밀번호 관리자에 따로 보관해, Coolify 서버 밖에 최소 한 벌을 둔다.
 
@@ -800,8 +801,8 @@ AWS는 지금 구현하지 않는다. 다만 인터페이스가 Coolify 밖에�
 
 | 대상 | 방식 |
 | --- | --- |
-| 대시보드 | GitHub OAuth 로그인만 허용 (Passport). 세션은 MySQL에 저장하고 httpOnly 쿠키로 전달 |
-| CLI | 직접 구현한 디바이스 인증 흐름(RFC 8628). 브라우저에서 GitHub로 로그인한 뒤 사용자 코드를 승인한다. 토큰은 불투명 랜덤 값이고 서버에는 해시만 저장한다. access 토큰 1시간, refresh 토큰 30일. macOS Keychain, Windows Credential Manager, Linux libsecret에 저장 |
+| 대시보드 | GitHub OAuth 로그인만 허용 (Passport). 세션은 MySQL에 저장하고 httpOnly 쿠키로 전달. 마지막 사용 후 7일이 지나면 만료되고, 쓸 때마다 연장한다 |
+| CLI | 직접 구현한 디바이스 인증 흐름(RFC 8628). 브라우저에서 GitHub로 로그인한 뒤 사용자 코드를 승인한다. 토큰은 불투명 랜덤 값이고 서버에는 해시만 저장한다. access 토큰 1시간, refresh 토큰 30일(쓸 때마다 새로 발급하고, 이미 쓴 refresh 토큰이 다시 오면 그 사용자의 토큰을 모두 폐기). 토큰에는 종류를 알 수 있는 접두사를 붙인다: `senv_at_`(access), `senv_rt_`(refresh), `senv_st_`(서비스 토큰). 코드나 로그에 새어 나가도 시크릿 스캐닝 도구로 찾을 수 있다. macOS Keychain, Windows Credential Manager, Linux libsecret에 저장 |
 | 서비스 토큰 | 프로젝트·환경·읽기/쓰기 범위 지정, 만료일 필수(최대 1년). 발급 시 한 번만 보여주고 해시로 저장 |
 
 **GitHub 로그인 정책**
@@ -819,7 +820,9 @@ AWS는 지금 구현하지 않는다. 다만 인터페이스가 Coolify 밖에�
 
 ### 9.3 권한
 
-권한은 프로젝트 × 환경 단위로 `none`, `read`, `write`, `admin` 중 하나를 준다.
+**M1**에서는 두 단계만 둔다: 승인된 멤버는 모든 프로젝트·환경을 읽고 쓰고, 관리자는 사용자 승인과 비활성화도 한다. M1의 목표가 local·development 값 이관이고 production 값 이관은 M2 완료 기준이라, 아래 세부 권한은 M2에서 넣는다.
+
+**M2부터** 권한은 프로젝트 × 환경 단위로 `none`, `read`, `write`, `admin` 중 하나를 준다.
 
 | 권한 | 할 수 있는 일 |
 | --- | --- |
@@ -954,6 +957,10 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 16 | 환경 | `local`, `development`, `production` 세 개로 고정. 추가·삭제 없음 | 5.1 |
 | 17 | 공유 그룹 | `kind='shared'`인 특수 프로젝트 하나 | 5.1 |
 | 18 | 이름 규칙 | 소문자·숫자·하이픈, 32자 이하 | 5.1 |
+| 19 | 첫 관리자 | `SENV_BOOTSTRAP_ADMINS` 환경변수에 GitHub 사용자명으로 지정 | 4.5, 9.2 |
+| 20 | M1 권한 | 관리자·멤버 두 단계. 프로젝트 × 환경 세부 권한은 M2 | 9.3 |
+| 21 | 토큰 형식 | 불투명 랜덤 + 종류 접두사 (`senv_at_`, `senv_rt_`, `senv_st_`) | 9.2 |
+| 22 | 대시보드 세션 | 7일, 쓸 때마다 연장 | 9.2 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
