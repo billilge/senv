@@ -35,8 +35,35 @@ model User {
   lastLoginAt DateTime?  @map("last_login_at") @db.DateTime(3)
   sessions    Session[]
   apiTokens   ApiToken[]
+  deviceCodes DeviceCode[]
 
   @@map("users")
+}
+
+enum DeviceCodeStatus {
+  pending
+  approved
+  denied
+  /// 토큰을 이미 받아 갔다
+  consumed
+}
+
+/// CLI 디바이스 로그인 대기 상태 (RFC 8628)
+model DeviceCode {
+  id              String           @id @default(uuid(7)) @db.Char(36)
+  /// CLI가 폴링할 때 쓰는 비밀 값의 해시
+  deviceCodeHash  String           @unique @map("device_code_hash") @db.Char(64)
+  /// 사용자가 브라우저에 입력하는 코드 (하이픈 없이 저장)
+  userCode        String           @unique @map("user_code") @db.Char(8)
+  status          DeviceCodeStatus @default(pending)
+  userId          String?          @map("user_id") @db.Char(36)
+  intervalSeconds Int              @map("interval_seconds")
+  lastPolledAt    DateTime?        @map("last_polled_at") @db.DateTime(3)
+  createdAt       DateTime         @map("created_at") @db.DateTime(3)
+  expiresAt       DateTime         @map("expires_at") @db.DateTime(3)
+  user            User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("device_codes")
 }
 
 enum ApiTokenKind {
