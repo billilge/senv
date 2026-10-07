@@ -33,8 +33,24 @@ model User {
   status      UserStatus @default(pending)
   createdAt   DateTime   @default(now()) @map("created_at") @db.DateTime(3)
   lastLoginAt DateTime?  @map("last_login_at") @db.DateTime(3)
+  sessions    Session[]
 
   @@map("users")
+}
+
+/// 대시보드 세션. 쿠키에는 원문 토큰, DB에는 해시만 둔다
+model Session {
+  id         String   @id @default(uuid(7)) @db.Char(36)
+  userId     String   @map("user_id") @db.Char(36)
+  tokenHash  String   @unique @map("token_hash") @db.Char(64)
+  createdAt  DateTime @map("created_at") @db.DateTime(3)
+  lastUsedAt DateTime @map("last_used_at") @db.DateTime(3)
+  /// 마지막 사용 후 7일. 쓸 때마다 연장한다 (PRD 9.2)
+  expiresAt  DateTime @map("expires_at") @db.DateTime(3)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
 }
 
 enum ProjectKind {
