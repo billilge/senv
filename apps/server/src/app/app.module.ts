@@ -1,5 +1,6 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ApiTokenService } from '../auth/api-token-service.js';
 import { AuthController } from '../auth/auth.controller.js';
@@ -22,6 +23,7 @@ import { SnapshotStore } from '../storage/snapshot-store.js';
 import { UsersController } from '../users/users.controller.js';
 import { UsersService } from '../users/users-service.js';
 import { type AppDependencies, CLOCK, SERVER_CONFIG } from './app-dependencies.js';
+import { dashboardStaticOptions } from './dashboard.js';
 
 type Clock = () => Date;
 
@@ -36,7 +38,12 @@ export class AppModule {
     return {
       module: AppModule,
       // 한도는 경로마다 @RateLimit으로 정한다. 여기 기본값은 쓰이지 않는다
-      imports: [ThrottlerModule.forRoot({ throttlers: [RATE_LIMITS.tokenIssue] })],
+      imports: [
+        ThrottlerModule.forRoot({ throttlers: [RATE_LIMITS.tokenIssue] }),
+        ...(deps.dashboardDir
+          ? [ServeStaticModule.forRoot(dashboardStaticOptions(deps.dashboardDir))]
+          : []),
+      ],
       controllers: [
         HealthController,
         AuthController,

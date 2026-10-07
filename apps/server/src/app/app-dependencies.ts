@@ -10,6 +10,8 @@ export interface AppDependencies {
   snapshotStore: SnapshotStore;
   github: GitHubClient;
   now?: () => Date;
+  /** 대시보드 빌드 결과(index.html, assets/) 폴더. 없으면 API만 연다 */
+  dashboardDir?: string;
 }
 
 export const SERVER_CONFIG = Symbol('SERVER_CONFIG');

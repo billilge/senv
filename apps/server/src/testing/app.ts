@@ -14,7 +14,7 @@ export const TEST_APP_URL = 'http://localhost:3000';
 
 /** 테스트용 의존성(실제 MySQL, 메모리 저장소, 가짜 GitHub)으로 HTTP 앱을 띄운다 */
 export async function createTestApp(
-  options: { now?: () => Date; bootstrapAdmins?: string[] } = {},
+  options: { now?: () => Date; bootstrapAdmins?: string[]; dashboardDir?: string } = {},
 ) {
   const prisma = createTestPrisma();
   const github = new FakeGitHubClient();
@@ -33,7 +33,14 @@ export async function createTestApp(
   };
 
   const app: INestApplication = await createApp(
-    { config, prisma, snapshotStore: store, github, now: options.now },
+    {
+      config,
+      prisma,
+      snapshotStore: store,
+      github,
+      now: options.now,
+      dashboardDir: options.dashboardDir,
+    },
     { logger: false },
   );
   await app.init();
