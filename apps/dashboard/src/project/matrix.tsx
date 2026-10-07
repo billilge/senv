@@ -1,5 +1,7 @@
-import { Button, Label, Text } from '@primer/react';
+import { EyeIcon } from '@primer/octicons-react';
+import { Button, CounterLabel, Label, Stack } from '@primer/react';
 import { useEffect, useState } from 'react';
+import table from '../ui/data-table.module.css';
 import type { EnvironmentName, EnvironmentValues } from './queries';
 
 const REVEAL_MS = 30_000;
@@ -18,42 +20,53 @@ export function Matrix({ envs, values }: MatrixProps) {
   ].sort();
 
   return (
-    <table>
-      <thead>
-        <tr>
-          <th scope="col">키</th>
-          {envs.map((env) => {
-            const version = values[env]?.version ?? 0;
-            return (
-              <th key={env} scope="col">
-                {env} <Text>{version === 0 ? '게시 전' : `v${version}`}</Text>
-              </th>
-            );
-          })}
-        </tr>
-      </thead>
-      <tbody>
-        {keys.map((key) => (
-          <tr key={key}>
-            <th scope="row">{key}</th>
-            {envs.map((env) => (
-              <td key={env}>
-                <MatrixCell
-                  name={`${key} ${env}`}
-                  value={values[env]?.variables[key]}
-                  sameAs={envs.filter(
-                    (other) =>
-                      other !== env &&
-                      values[other]?.variables[key] !== undefined &&
-                      values[other]?.variables[key] === values[env]?.variables[key],
-                  )}
-                />
-              </td>
-            ))}
+    <div className={table.container}>
+      <table className={table.table}>
+        <thead>
+          <tr>
+            <th scope="col">키</th>
+            {envs.map((env) => {
+              const version = values[env]?.version ?? 0;
+              return (
+                <th key={env} scope="col">
+                  <Stack direction="horizontal" gap="condensed" align="center">
+                    <span>{env}</span>
+                    {version === 0 ? (
+                      <Label variant="secondary">게시 전</Label>
+                    ) : (
+                      <CounterLabel>{`v${version}`}</CounterLabel>
+                    )}
+                  </Stack>
+                </th>
+              );
+            })}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {keys.map((key) => (
+            <tr key={key}>
+              <th scope="row" className={table.key}>
+                {key}
+              </th>
+              {envs.map((env) => (
+                <td key={env}>
+                  <MatrixCell
+                    name={`${key} ${env}`}
+                    value={values[env]?.variables[key]}
+                    sameAs={envs.filter(
+                      (other) =>
+                        other !== env &&
+                        values[other]?.variables[key] !== undefined &&
+                        values[other]?.variables[key] === values[env]?.variables[key],
+                    )}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -76,19 +89,26 @@ function MatrixCell({
   if (value === undefined) return <Label variant="attention">누락</Label>;
   const last = sameAs.at(-1);
   return (
-    <span>
-      {revealed ? <code>{value}</code> : <Text>••••••</Text>}{' '}
-      {!revealed && (
-        <Button
-          size="small"
-          variant="invisible"
-          aria-label={`${name} 값 보기`}
-          onClick={() => setRevealed(true)}
-        >
-          보기
-        </Button>
-      )}
-      {last && <Text>{`${sameAs.join('·')}${WITH[last]} 같음`}</Text>}
-    </span>
+    <Stack gap="none">
+      <Stack direction="horizontal" gap="condensed" align="center">
+        {revealed ? (
+          <code className={table.mono}>{value}</code>
+        ) : (
+          <>
+            <span className={table.mono}>••••••</span>
+            <Button
+              size="small"
+              variant="invisible"
+              leadingVisual={EyeIcon}
+              aria-label={`${name} 값 보기`}
+              onClick={() => setRevealed(true)}
+            >
+              보기
+            </Button>
+          </>
+        )}
+      </Stack>
+      {last && <span className={table.muted}>{`${sameAs.join('·')}${WITH[last]} 같음`}</span>}
+    </Stack>
   );
 }

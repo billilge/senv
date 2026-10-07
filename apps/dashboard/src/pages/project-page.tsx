@@ -1,4 +1,5 @@
-import { Button, Flash, Heading, Spinner, Stack, Text } from '@primer/react';
+import { PencilIcon, RepoIcon, StackIcon } from '@primer/octicons-react';
+import { Button, Flash, PageHeader, Spinner, Stack } from '@primer/react';
 import { SenvApiError } from '@senv/api-client';
 import { useState } from 'react';
 import { EnvironmentEditor } from '../project/environment-editor';
@@ -9,6 +10,7 @@ import {
   useEnvironmentValues,
   useProject,
 } from '../project/queries';
+import list from '../ui/list-box.module.css';
 
 export function ProjectPage({ project }: { project: string }) {
   const info = useProject(project);
@@ -62,10 +64,32 @@ function ProjectValues({
   const editingValues = editing && values[editing];
 
   return (
-    <Stack>
-      <Heading as="h2">
-        {project} <Text>{displayName}</Text>
-      </Heading>
+    <Stack gap="normal">
+      <PageHeader>
+        <PageHeader.TitleArea>
+          <PageHeader.LeadingVisual>
+            {kind === 'shared' ? <StackIcon /> : <RepoIcon />}
+          </PageHeader.LeadingVisual>
+          <PageHeader.Title as="h2">{project}</PageHeader.Title>
+        </PageHeader.TitleArea>
+        <PageHeader.Description>{displayName}</PageHeader.Description>
+        {!editing && (
+          <PageHeader.Actions>
+            {envs.map((env) => (
+              <Button
+                key={env}
+                leadingVisual={PencilIcon}
+                onClick={() => {
+                  setNotice(null);
+                  setEditing(env);
+                }}
+              >
+                {env} 편집
+              </Button>
+            ))}
+          </PageHeader.Actions>
+        )}
+      </PageHeader>
       {kind === 'shared' && (
         <Flash>
           여러 프로젝트가 같이 쓰는 값입니다. 다른 프로젝트에서는 {'${shared.'}
@@ -85,27 +109,12 @@ function ProjectValues({
             setNotice(`게시했습니다: ${editing} v${version}`);
           }}
         />
+      ) : keys.size === 0 ? (
+        <div className={list.box}>
+          <p className={list.empty}>아직 값이 없습니다. 위의 편집 버튼으로 값을 추가하세요.</p>
+        </div>
       ) : (
-        <>
-          <Stack direction="horizontal" wrap="wrap">
-            {envs.map((env) => (
-              <Button
-                key={env}
-                onClick={() => {
-                  setNotice(null);
-                  setEditing(env);
-                }}
-              >
-                {env} 편집
-              </Button>
-            ))}
-          </Stack>
-          {keys.size === 0 ? (
-            <Text>아직 값이 없습니다.</Text>
-          ) : (
-            <Matrix envs={envs} values={values} />
-          )}
-        </>
+        <Matrix envs={envs} values={values} />
       )}
     </Stack>
   );
