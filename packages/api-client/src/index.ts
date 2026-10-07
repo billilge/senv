@@ -59,7 +59,9 @@ export async function unwrap<T>(
   try {
     result = await request;
   } catch (error) {
-    throw new SenvNetworkError(error);
+    // fetch는 연결 실패를 TypeError로 알린다. 그 밖의 오류(토큰 준비 실패 등)는 그대로 둔다
+    if (error instanceof TypeError) throw new SenvNetworkError(error);
+    throw error;
   }
 
   const { data, error, response } = result;

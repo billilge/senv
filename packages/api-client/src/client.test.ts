@@ -105,6 +105,18 @@ describe('unwrap', () => {
     await expect(unwrap(client.GET('/api/v1/me'))).rejects.toThrow(SenvNetworkError);
   });
 
+  it('네트워크 오류가 아닌 오류(예: 토큰 준비 실패)는 감싸지 않고 그대로 던진다', async () => {
+    class NotLoggedIn extends Error {}
+    const client = createSenvClient({
+      baseUrl: 'https://senv.example.com',
+      accessToken: () => {
+        throw new NotLoggedIn('로그인하세요');
+      },
+      fetch: fakeServer(200, {}).fetch,
+    });
+    await expect(unwrap(client.GET('/api/v1/me'))).rejects.toThrow(NotLoggedIn);
+  });
+
   it('204 응답이면 undefined를 돌려준다', async () => {
     const client = createSenvClient({
       baseUrl: 'https://senv.example.com',
