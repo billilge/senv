@@ -2,6 +2,7 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { createCoolifyProvider } from '@senv/target-coolify';
 import { ApiTokenService } from '../auth/api-token-service.js';
 import { AuthController } from '../auth/auth.controller.js';
 import { AuthService } from '../auth/auth-service.js';
@@ -22,6 +23,9 @@ import { ProjectsService } from '../projects/projects-service.js';
 import { PublishService } from '../publishing/publish-service.js';
 import { SnapshotService } from '../snapshots/snapshot-service.js';
 import { SnapshotStore } from '../storage/snapshot-store.js';
+import { ConnectionsService } from '../targets/connections-service.js';
+import { TargetRegistry } from '../targets/target-registry.js';
+import { TargetsController } from '../targets/targets.controller.js';
 import { RoleAssignmentsController } from '../users/role-assignments.controller.js';
 import { UsersController } from '../users/users.controller.js';
 import { UsersService } from '../users/users-service.js';
@@ -55,6 +59,7 @@ export class AppModule {
         KeySchemasController,
         UsersController,
         RoleAssignmentsController,
+        TargetsController,
       ],
       providers: [
         { provide: APP_GUARD, useClass: AuthGuard },
@@ -79,6 +84,20 @@ export class AppModule {
           provide: 'SHARED_PROJECT_READY',
           useFactory: (projects: ProjectsService) => projects.ensureSharedProject(),
           inject: [ProjectsService],
+        },
+        {
+          provide: TargetRegistry,
+          useValue: new TargetRegistry(deps.targetProviders ?? [createCoolifyProvider()]),
+        },
+        {
+          provide: ConnectionsService,
+          useFactory: (
+            prisma: PrismaClient,
+            registry: TargetRegistry,
+            config: ServerConfig,
+            now: Clock,
+          ) => new ConnectionsService(prisma, registry, config.keyring, now),
+          inject: [PrismaClient, TargetRegistry, SERVER_CONFIG, CLOCK],
         },
         {
           provide: KeySchemaService,

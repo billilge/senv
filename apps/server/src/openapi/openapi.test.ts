@@ -50,6 +50,13 @@ describe('OpenAPI 문서', () => {
         'GET /api/v1/role-assignments',
         'PUT /api/v1/role-assignments/{login}',
         'DELETE /api/v1/role-assignments/{login}',
+        'GET /api/v1/targets/providers',
+        'GET /api/v1/targets/connections',
+        'POST /api/v1/targets/connections',
+        'PATCH /api/v1/targets/connections/{id}',
+        'DELETE /api/v1/targets/connections/{id}',
+        'POST /api/v1/targets/connections/{id}/test',
+        'GET /api/v1/targets/connections/{id}/resources',
       ].sort(),
     );
   });

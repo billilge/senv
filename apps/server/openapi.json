@@ -1540,6 +1540,348 @@
           "users"
         ]
       }
+    },
+    "/api/v1/targets/providers": {
+      "get": {
+        "operationId": "TargetsController_providers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetProviderList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/connections": {
+      "get": {
+        "operationId": "TargetsController_listConnections",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetConnectionList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      },
+      "post": {
+        "operationId": "TargetsController_createConnection",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "config": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "name",
+                  "type",
+                  "config"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetConnection"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/connections/{id}": {
+      "patch": {
+        "operationId": "TargetsController_updateConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "config": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetConnection"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      },
+      "delete": {
+        "operationId": "TargetsController_removeConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "지움"
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/connections/{id}/test": {
+      "post": {
+        "operationId": "TargetsController_testConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "연결됨"
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/connections/{id}/resources": {
+      "get": {
+        "operationId": "TargetsController_resources",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetResourceList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
     }
   },
   "info": {
@@ -2200,6 +2542,229 @@
           "login",
           "role",
           "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "TargetProviderList": {
+        "type": "object",
+        "properties": {
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TargetProvider"
+            }
+          }
+        },
+        "required": [
+          "providers"
+        ],
+        "additionalProperties": false
+      },
+      "TargetProvider": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "readValues": {
+                "type": "boolean"
+              },
+              "deleteKeys": {
+                "type": "boolean"
+              },
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "restart",
+                    "redeploy"
+                  ]
+                }
+              },
+              "buildTimeFlag": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "readValues",
+              "deleteKeys",
+              "actions",
+              "buildTimeFlag"
+            ],
+            "additionalProperties": false
+          },
+          "connectionFields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "url",
+                    "secret",
+                    "boolean"
+                  ]
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "label",
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "mappingOptionFields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "url",
+                    "secret",
+                    "boolean"
+                  ]
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "label",
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "type",
+          "displayName",
+          "capabilities",
+          "connectionFields",
+          "mappingOptionFields"
+        ],
+        "additionalProperties": false
+      },
+      "TargetConnectionList": {
+        "type": "object",
+        "properties": {
+          "connections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TargetConnection"
+            }
+          }
+        },
+        "required": [
+          "connections"
+        ],
+        "additionalProperties": false
+      },
+      "TargetConnection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "비밀 필드를 뺀 설정"
+          },
+          "mappingCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "ISO 8601 시각"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "ISO 8601 시각"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "config",
+          "mappingCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "TargetResourceList": {
+        "type": "object",
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "resources"
         ],
         "additionalProperties": false
       }

@@ -11,7 +11,9 @@ declare module 'vitest' {
 
 /** 통합 테스트 전체에서 MySQL 컨테이너 하나를 띄우고 마이그레이션을 적용한다 */
 export default async function setup(project: TestProject) {
-  const container = await new MySqlContainer('mysql:8.4')
+  // 짧은 이름(mysql:8.4)은 Docker Desktop이 가끔 못 찾아 testcontainers가 내려받으려 한다(외부 접속).
+  // 전체 이름으로 쓰면 로컬 이미지를 바로 찾는다
+  const container = await new MySqlContainer('docker.io/library/mysql:8.4')
     .withDatabase('stream_env')
     .withUsername('stream_env')
     .withUserPassword('test-password')

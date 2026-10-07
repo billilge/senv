@@ -153,6 +153,57 @@ export const roleAssignmentListSchema = z
   .object({ assignments: z.array(roleAssignmentSchema) })
   .meta({ id: 'RoleAssignmentList' });
 
+const fieldSpecSchema = z.object({
+  name: z.string(),
+  label: z.string(),
+  kind: z.enum(['text', 'url', 'secret', 'boolean']),
+  required: z.boolean().optional(),
+  description: z.string().optional(),
+});
+
+export const targetProviderSchema = z
+  .object({
+    type: z.string(),
+    displayName: z.string(),
+    capabilities: z.object({
+      readValues: z.boolean(),
+      deleteKeys: z.boolean(),
+      actions: z.array(z.enum(['restart', 'redeploy'])),
+      buildTimeFlag: z.boolean(),
+    }),
+    connectionFields: z.array(fieldSpecSchema),
+    mappingOptionFields: z.array(fieldSpecSchema),
+  })
+  .meta({ id: 'TargetProvider' });
+
+export const targetProviderListSchema = z
+  .object({ providers: z.array(targetProviderSchema) })
+  .meta({ id: 'TargetProviderList' });
+
+export const targetConnectionSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    type: z.string(),
+    config: z.record(z.string(), z.unknown()).describe('비밀 필드를 뺀 설정'),
+    mappingCount: z.number().int(),
+    createdAt: isoDateTime,
+    updatedAt: isoDateTime,
+  })
+  .meta({ id: 'TargetConnection' });
+
+export const targetConnectionListSchema = z
+  .object({ connections: z.array(targetConnectionSchema) })
+  .meta({ id: 'TargetConnectionList' });
+
+export const targetResourceListSchema = z
+  .object({
+    resources: z.array(
+      z.object({ id: z.string(), name: z.string(), description: z.string().optional() }),
+    ),
+  })
+  .meta({ id: 'TargetResourceList' });
+
 export const tokenPairSchema = z
   .object({
     accessToken: z.string(),

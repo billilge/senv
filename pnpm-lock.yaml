@@ -157,6 +157,9 @@ importers:
       '@senv/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@senv/target-coolify':
+        specifier: workspace:*
+        version: link:../../packages/target-coolify
       cookie-parser:
         specifier: 1.4.7
         version: 1.4.7
@@ -179,6 +182,9 @@ importers:
       '@senv/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@senv/target-testkit':
+        specifier: workspace:*
+        version: link:../../packages/target-testkit
       '@swc/core':
         specifier: 1.16.13
         version: 1.16.13

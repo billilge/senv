@@ -27,6 +27,7 @@
     "@prisma/adapter-mariadb": "7.10.0",
     "@prisma/client": "7.10.0",
     "@senv/core": "workspace:*",
+    "@senv/target-coolify": "workspace:*",
     "cookie-parser": "1.4.7",
     "prisma": "7.10.0",
     "reflect-metadata": "0.2.2",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@nestjs/testing": "12.1.2",
     "@senv/config": "workspace:*",
+    "@senv/target-testkit": "workspace:*",
     "@swc/core": "1.16.13",
     "@testcontainers/mysql": "12.2.0",
     "@types/cookie-parser": "1.4.10",

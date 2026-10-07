@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
+import { MemoryTargetProvider } from '@senv/target-testkit';
 import request from 'supertest';
 import { inject } from 'vitest';
 import { createApp } from '../app/create-app.js';
@@ -19,6 +20,13 @@ export async function createTestApp(
   const prisma = createTestPrisma();
   const github = new FakeGitHubClient();
   const store = new InMemorySnapshotStore();
+  // 배포 대상은 메모리 제공자로 (Coolify에 붙지 않는다)
+  const targets = new MemoryTargetProvider({
+    resources: [
+      { id: 'app-api', name: 'stream-api-prod' },
+      { id: 'app-web', name: 'stream-web-prod' },
+    ],
+  });
   const config: ServerConfig = {
     port: 0,
     appUrl: TEST_APP_URL,
@@ -40,6 +48,7 @@ export async function createTestApp(
       github,
       now: options.now,
       dashboardDir: options.dashboardDir,
+      targetProviders: [targets],
     },
     { logger: false },
   );
@@ -51,6 +60,7 @@ export async function createTestApp(
     prisma,
     github,
     store,
+    targets,
     config,
     close: async () => {
       await app.close();

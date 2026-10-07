@@ -116,16 +116,17 @@ enum EnvironmentName {
 }
 
 model Project {
-  id             String        @id @default(uuid(7)) @db.Char(36)
+  id             String          @id @default(uuid(7)) @db.Char(36)
   /// 소문자·숫자·하이픈, 32자 이하. R2 경로와 CLI 인자에 그대로 쓴다
-  name           String        @unique @db.VarChar(32)
-  displayName    String        @map("display_name") @db.VarChar(100)
-  kind           ProjectKind   @default(app)
+  name           String          @unique @db.VarChar(32)
+  displayName    String          @map("display_name") @db.VarChar(100)
+  kind           ProjectKind     @default(app)
   /// 클라이언트 번들에 들어가는 키의 접두사, 쉼표로 구분 (예: VITE_). 노출 검사에 쓴다 (PRD 6.3)
-  publicPrefixes String        @default("") @map("public_prefixes") @db.VarChar(200)
-  createdAt      DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  publicPrefixes String          @default("") @map("public_prefixes") @db.VarChar(200)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.DateTime(3)
   environments   Environment[]
   keySchemas     KeySchema[]
+  targets        TargetMapping[]
 
   @@map("projects")
 }
@@ -206,4 +207,138 @@ model RoleAssignment {
   createdAt DateTime @map("created_at") @db.DateTime(3)
 
   @@map("role_assignments")
+}
+
+enum SyncMode {
+  /// 게시하면 자동으로 반영한다 (기본)
+  auto
+  /// 대시보드에서 계획을 확인하고 버튼으로 반영한다
+  manual
+}
+
+enum AfterSync {
+  /// 바뀐 키에 빌드 시점 값이 있으면 재배포, 아니면 재시작
+  auto
+  none
+  restart
+  redeploy
+}
+
+enum UnmanagedKeys {
+  keep
+  delete
+}
+
+enum SyncTrigger {
+  publish
+  manual
+}
+
+enum SyncStatus {
+  succeeded
+  /// 바뀐 값이 없어 아무것도 하지 않음
+  skipped
+  failed
+}
+
+enum JobStatus {
+  pending
+  running
+  done
+  failed
+}
+
+/// 배포 대상 연결 (PRD 8.1). 설정(자격 증명 포함)은 KEK 봉투로 암호화해 둔다
+model TargetConnection {
+  id        String          @id @db.Char(36)
+  name      String          @unique @db.VarChar(64)
+  /// 제공자 종류 (예: coolify)
+  type      String          @db.VarChar(32)
+  /// 봉투 암호화한 연결 설정 JSON. 연결 id를 AAD에 묶는다
+  config    String          @db.Text
+  createdBy String          @map("created_by") @db.VarChar(64)
+  createdAt DateTime        @map("created_at") @db.DateTime(3)
+  updatedAt DateTime        @map("updated_at") @db.DateTime(3)
+  mappings  TargetMapping[]
+
+  @@map("target_connections")
+}
+
+/// (프로젝트, 환경) → 배포 대상 리소스 (PRD 8.1)
+model TargetMapping {
+  id                      String           @id @default(uuid(7)) @db.Char(36)
+  connectionId            String           @map("connection_id") @db.Char(36)
+  projectId               String           @map("project_id") @db.Char(36)
+  env                     EnvironmentName
+  resourceId              String           @map("resource_id") @db.VarChar(128)
+  resourceName            String           @map("resource_name") @db.VarChar(255)
+  syncMode                SyncMode         @default(auto) @map("sync_mode")
+  afterSync               AfterSync        @default(auto) @map("after_sync")
+  unmanaged               UnmanagedKeys    @default(keep)
+  /// 포함·제외 키 패턴, 쉼표로 구분 (예: SENTRY_*)
+  include                 String           @default("") @db.VarChar(500)
+  exclude                 String           @default("") @db.VarChar(500)
+  /// 제공자 전용 매핑 옵션 JSON
+  options                 String           @default("{}") @db.VarChar(2000)
+  /// 마지막으로 반영한 값의 키별 해시 JSON. 값 자체는 남기지 않는다 (드리프트 감지)
+  lastSyncedHashes        String?          @map("last_synced_hashes") @db.Text
+  lastSyncedVersion       Int?             @map("last_synced_version")
+  lastSyncedSharedVersion Int?             @map("last_synced_shared_version")
+  lastSyncedAt            DateTime?        @map("last_synced_at") @db.DateTime(3)
+  /// 인프라에서 직접 바뀐 키, 쉼표로 구분
+  driftKeys               String?          @map("drift_keys") @db.Text
+  driftCheckedAt          DateTime?        @map("drift_checked_at") @db.DateTime(3)
+  createdAt               DateTime         @map("created_at") @db.DateTime(3)
+  updatedAt               DateTime         @map("updated_at") @db.DateTime(3)
+  connection              TargetConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  project                 Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  runs                    SyncRun[]
+
+  @@unique([connectionId, resourceId])
+  @@index([projectId, env])
+  @@map("target_mappings")
+}
+
+/// 동기화 기록 (PRD 8.2). 바뀐 키 이름만 남기고 값은 남기지 않는다
+model SyncRun {
+  id            String        @id @default(uuid(7)) @db.Char(36)
+  mappingId     String        @map("mapping_id") @db.Char(36)
+  trigger       SyncTrigger
+  status        SyncStatus
+  version       Int
+  sharedVersion Int           @map("shared_version")
+  /// 바뀐 키 이름, 쉼표로 구분
+  changedKeys   String        @map("changed_keys") @db.Text
+  action        String?       @db.VarChar(16)
+  /// 제공자가 돌려준 참조 (예: Coolify deployment_uuid)
+  providerRef   String?       @map("provider_ref") @db.VarChar(128)
+  error         String?       @db.VarChar(1000)
+  attempt       Int           @default(1)
+  actor         String?       @db.VarChar(64)
+  startedAt     DateTime      @map("started_at") @db.DateTime(3)
+  finishedAt    DateTime      @map("finished_at") @db.DateTime(3)
+  mapping       TargetMapping @relation(fields: [mappingId], references: [id], onDelete: Cascade)
+
+  @@index([mappingId, startedAt])
+  @@map("sync_runs")
+}
+
+/// 작업 큐 (PRD 4.4). worker가 SKIP LOCKED로 가져간다
+model Job {
+  id          String    @id @default(uuid(7)) @db.Char(36)
+  type        String    @db.VarChar(32)
+  payload     String    @db.Text
+  /// 같은 키의 대기 작업은 새 작업으로 대체한다 (예: sync:{mappingId})
+  dedupeKey   String?   @map("dedupe_key") @db.VarChar(128)
+  status      JobStatus @default(pending)
+  runAt       DateTime  @map("run_at") @db.DateTime(3)
+  lockedUntil DateTime? @map("locked_until") @db.DateTime(3)
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error") @db.VarChar(1000)
+  createdAt   DateTime  @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime  @map("updated_at") @db.DateTime(3)
+
+  @@index([status, runAt])
+  @@index([dedupeKey])
+  @@map("jobs")
 }

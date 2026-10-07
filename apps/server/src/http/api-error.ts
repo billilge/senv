@@ -1,5 +1,11 @@
 import { HttpException } from '@nestjs/common';
-import { ChangeSetConflictError } from '@senv/core';
+import {
+  ChangeSetConflictError,
+  InvalidTargetConfigError,
+  TargetAuthError,
+  TargetNotFoundError,
+  TargetUnavailableError,
+} from '@senv/core';
 import { InvalidRefreshTokenError, RefreshTokenReusedError } from '../auth/api-token-service.js';
 import { NotOrgMemberError, UserDisabledError } from '../auth/auth-service.js';
 import {
@@ -28,6 +34,12 @@ import {
   VersionConflictError,
   VersionNotFoundError,
 } from '../publishing/publish-service.js';
+import {
+  ConnectionInUseError,
+  ConnectionNameTakenError,
+  ConnectionNotFoundError,
+} from '../targets/connections-service.js';
+import { UnknownProviderError } from '../targets/target-registry.js';
 import {
   AdminRequiredError,
   AssignmentNotFoundError,
@@ -107,6 +119,15 @@ const RULES: Rule[] = [
   { type: InvalidKeyNameError, status: 422, code: 'invalid_key_name' },
   { type: KeySchemaNotFoundError, status: 404, code: 'key_schema_not_found' },
   { type: InvalidPublicPrefixError, status: 422, code: 'invalid_public_prefix' },
+  { type: ConnectionNotFoundError, status: 404, code: 'connection_not_found' },
+  { type: ConnectionNameTakenError, status: 409, code: 'connection_name_taken' },
+  { type: ConnectionInUseError, status: 409, code: 'connection_in_use' },
+  { type: UnknownProviderError, status: 422, code: 'unknown_provider' },
+  { type: InvalidTargetConfigError, status: 422, code: 'invalid_target_config' },
+  // 인프라가 우리 자격 증명을 거부한 것이라 401이 아니라 422로 알린다 (대시보드 로그인과 헷갈리지 않게)
+  { type: TargetAuthError, status: 422, code: 'target_auth_failed' },
+  { type: TargetNotFoundError, status: 404, code: 'target_resource_not_found' },
+  { type: TargetUnavailableError, status: 502, code: 'target_unavailable' },
   {
     type: PublishValidationError,
     status: 422,
