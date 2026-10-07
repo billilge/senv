@@ -9,6 +9,34 @@ datasource db {
   provider = "mysql"
 }
 
+/// M1은 두 단계만 둔다. 프로젝트 × 환경 세부 권한은 M2 (PRD 9.3)
+enum UserRole {
+  admin
+  member
+}
+
+enum UserStatus {
+  /// 로그인은 했지만 관리자가 아직 승인하지 않음
+  pending
+  active
+  disabled
+}
+
+model User {
+  id          String     @id @default(uuid(7)) @db.Char(36)
+  /// GitHub 숫자 ID. 사용자명은 바뀔 수 있어 이 값으로 식별한다
+  githubId    String     @unique @map("github_id") @db.VarChar(20)
+  login       String     @db.VarChar(39)
+  name        String?    @db.VarChar(255)
+  avatarUrl   String?    @map("avatar_url") @db.VarChar(512)
+  role        UserRole   @default(member)
+  status      UserStatus @default(pending)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.DateTime(3)
+  lastLoginAt DateTime?  @map("last_login_at") @db.DateTime(3)
+
+  @@map("users")
+}
+
 enum ProjectKind {
   app
   shared
