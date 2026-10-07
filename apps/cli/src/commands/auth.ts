@@ -1,4 +1,5 @@
 import { SenvApiError, unwrap } from '@senv/api-client';
+import { FileCredentialStore } from '../auth/credentials.js';
 import type { CliContext } from '../context.js';
 
 export class LoginFailedError extends Error {
@@ -37,6 +38,11 @@ export async function login(
         }),
       );
       await context.credentials.save({ apiUrl: context.apiUrl, ...pair });
+      if (context.credentials instanceof FileCredentialStore) {
+        out.warn(
+          `OS 키체인을 쓸 수 없어 토큰을 ${context.credentials.path}에 저장했습니다 (권한 600).`,
+        );
+      }
       const me = await unwrap(context.api.GET('/api/v1/me'));
       out.info(`${me.login}(으)로 로그인했습니다.`);
       return;

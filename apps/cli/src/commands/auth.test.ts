@@ -70,6 +70,12 @@ describe('senv login', () => {
     expect(await credentials.load(TEST_API_URL)).toBeUndefined();
   });
 
+  it('키체인 대신 파일에 토큰을 저장했으면 그 사실과 위치를 알려준다', async () => {
+    const { context, logs } = await createTestContext(deviceServer({ status: 200, body: pair }));
+    await login(context);
+    expect(logs.warn.join('\n')).toContain('credentials.json');
+  });
+
   it('browser: false면 브라우저를 열지 않는다', async () => {
     const { context, opened } = await createTestContext(deviceServer({ status: 200, body: pair }));
     await login(context, { browser: false });

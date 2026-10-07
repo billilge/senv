@@ -1,6 +1,9 @@
-import { Command } from 'commander';
+import { createRealContext } from './create-context.js';
+import { main } from './program.js';
 
-// 명령 연결은 마지막 CLI 기능에서 한다. 지금은 빌드 진입점만 둔다
-const program = new Command('senv').description('Stream Env Control CLI').version('0.1.0');
-
-await program.parseAsync(process.argv);
+process.exitCode = await main(process.argv, {
+  createContext: createRealContext,
+  stdout: (text) => process.stdout.write(text),
+  stderr: (text) => process.stderr.write(text),
+  debug: process.env.SENV_DEBUG === '1',
+});
