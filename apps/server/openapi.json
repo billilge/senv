@@ -1652,6 +1652,30 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "exposure": {
+            "type": "object",
+            "properties": {
+              "exposedSecrets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "secret인데 공개 접두사가 붙은 키. pull·run을 막는다"
+              },
+              "unregistered": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "스키마에 없는데 공개 접두사가 붙은 키. 경고만 한다"
+              }
+            },
+            "required": [
+              "exposedSecrets",
+              "unregistered"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -1659,7 +1683,8 @@
           "env",
           "version",
           "sharedVersion",
-          "variables"
+          "variables",
+          "exposure"
         ],
         "additionalProperties": false
       },

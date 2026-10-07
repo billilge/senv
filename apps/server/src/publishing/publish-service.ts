@@ -7,10 +7,13 @@ import {
   hasChanges,
   isEnvironmentName,
   isValidKeyName,
+  type KeySchema,
   type ReferenceIssue,
   resolveSharedReferences,
   SHARED_PROJECT_NAME,
   type VariableDiff,
+  type VariableType,
+  validateEnvironment,
   versionRo,
 } from '@senv/core';
 import type { PrismaClient } from '../generated/prisma/client.js';
@@ -43,6 +46,8 @@ export type PublishIssue =
   | { code: 'invalid_key_name'; key: string }
   | { code: 'reference_in_shared_group'; key: string }
   | { code: 'breaks_reference'; project: string; key: string; reference: string }
+  | { code: 'missing_required'; key: string }
+  | { code: 'invalid_type'; key: string; expected: VariableType }
   | ReferenceIssue;
 
 export class InvalidEnvironmentError extends Error {
@@ -273,15 +278,50 @@ export class PublishService {
       .sort()
       .map((key) => ({ code: 'invalid_key_name', key }));
 
+    let resolved = next;
     if (target.kind === 'shared') {
       // 빈 공유 그룹으로 해석하면 모든 참조가 이슈로 잡힌다
       const keys = new Set(resolveSharedReferences(next, {}).issues.map((issue) => issue.key));
       for (const key of keys) issues.push({ code: 'reference_in_shared_group', key });
       issues.push(...(await this.findBrokenDependents(target.env, current, next)));
     } else {
-      issues.push(...resolveSharedReferences(next, await this.sharedVariables(target.env)).issues);
+      const references = resolveSharedReferences(next, await this.sharedVariables(target.env));
+      issues.push(...references.issues);
+      resolved = references.values;
+    }
+    issues.push(...(await this.schemaIssues(target, resolved, issues)));
+    return issues;
+  }
+
+  /**
+   * 키 스키마의 필수·타입 검사 (PRD 5.2). 타입은 공유 참조를 푼 값으로 본다.
+   * 참조가 깨진 키는 이미 참조 문제로 알렸으므로 타입 오류를 겹쳐 알리지 않는다.
+   */
+  private async schemaIssues(
+    target: Target,
+    resolved: Record<string, string>,
+    known: PublishIssue[],
+  ): Promise<PublishIssue[]> {
+    const schema = await this.keySchemas(target.project);
+    if (schema.length === 0) return [];
+    const brokenKeys = new Set(known.map((issue) => issue.key));
+    const issues: PublishIssue[] = [];
+    for (const issue of validateEnvironment(schema, resolved, target.env)) {
+      if (issue.code === 'missing_required') {
+        issues.push({ code: 'missing_required', key: issue.key });
+      } else if (issue.code === 'invalid_type' && !brokenKeys.has(issue.key)) {
+        issues.push({ code: 'invalid_type', key: issue.key, expected: issue.expected });
+      }
     }
     return issues;
+  }
+
+  private async keySchemas(project: string): Promise<KeySchema[]> {
+    const rows = await this.prisma.keySchema.findMany({
+      where: { project: { name: project } },
+      select: { key: true, type: true, required: true, optionalIn: true },
+    });
+    return rows.map((row) => ({ ...row, optionalIn: row.optionalIn.split(',').filter(Boolean) }));
   }
 
   /** 공유 그룹에서 사라지는 키를 같은 환경의 다른 프로젝트가 참조하고 있으면 알려준다 */

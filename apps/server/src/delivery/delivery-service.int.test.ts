@@ -2,6 +2,7 @@
 import { randomBytes } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Keyring } from '../crypto/envelope.js';
+import { KeySchemaService } from '../key-schemas/key-schema-service.js';
 import { ProjectNotFoundError, ProjectsService } from '../projects/projects-service.js';
 import { InvalidEnvironmentError, PublishService } from '../publishing/publish-service.js';
 import { SnapshotService } from '../snapshots/snapshot-service.js';
@@ -21,7 +22,7 @@ beforeEach(async () => {
   await resetDatabase(prisma);
   snapshots = new SnapshotService(new InMemorySnapshotStore(), keyring);
   publishing = new PublishService(prisma, snapshots);
-  delivery = new DeliveryService(publishing);
+  delivery = new DeliveryService(publishing, new KeySchemaService(prisma));
   const projects = new ProjectsService(prisma);
   await projects.create({ name: 'web' });
   await projects.ensureSharedProject();
@@ -50,6 +51,7 @@ describe('DeliveryService.resolve', () => {
       version: 1,
       sharedVersion: 2,
       variables: { VITE_API_URL: 'https://api2.stream.dev/v1', VITE_MODE: 'prod' },
+      exposure: { exposedSecrets: [], unregistered: [] },
     });
   });
 
@@ -69,6 +71,7 @@ describe('DeliveryService.resolve', () => {
       version: 0,
       sharedVersion: 0,
       variables: {},
+      exposure: { exposedSecrets: [], unregistered: [] },
     });
   });
 
@@ -95,11 +98,25 @@ describe('DeliveryService.resolve', () => {
       version: 1,
       sharedVersion: 1,
       variables: { API_HOST: 'api.stream.dev' },
+      exposure: { exposedSecrets: [], unregistered: [] },
     });
   });
 
   it('없는 프로젝트면 ProjectNotFoundError, 고정 환경이 아니면 InvalidEnvironmentError다', async () => {
     await expect(delivery.resolve('ghost', 'local')).rejects.toThrow(ProjectNotFoundError);
     await expect(delivery.resolve('web', 'staging')).rejects.toThrow(InvalidEnvironmentError);
+  });
+
+  it('공개 접두사가 붙은 키가 secret이면 exposedSecrets, 스키마에 없으면 unregistered로 알린다', async () => {
+    const schemas = new KeySchemaService(prisma);
+    await schemas.setPublicPrefixes('web', ['VITE_']);
+    await schemas.put('web', 'VITE_SECRET', { visibility: 'secret' }, 'u1');
+    await schemas.put('web', 'VITE_PUBLIC', { visibility: 'public' }, 'u1');
+    await publish('web', { VITE_SECRET: 's', VITE_PUBLIC: 'p', VITE_NEW: 'n', SERVER_ONLY: 'x' });
+
+    expect((await delivery.resolve('web', 'production')).exposure).toEqual({
+      exposedSecrets: ['VITE_SECRET'],
+      unregistered: ['VITE_NEW'],
+    });
   });
 });

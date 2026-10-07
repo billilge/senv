@@ -4,6 +4,7 @@ import { ChangeSetConflictError } from '@senv/core';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Envelope, Keyring } from '../crypto/envelope.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { KeySchemaService } from '../key-schemas/key-schema-service.js';
 import { ProjectNotFoundError, ProjectsService } from '../projects/projects-service.js';
 import { SnapshotService } from '../snapshots/snapshot-service.js';
 import { InMemorySnapshotStore } from '../storage/in-memory-snapshot-store.js';
@@ -469,5 +470,63 @@ describe('PublishService.rollback', () => {
         actor: 'user_1',
       }),
     ).rejects.toThrow(VersionNotFoundError);
+  });
+});
+
+describe('키 스키마 검증', () => {
+  const schemas = () => new KeySchemaService(prisma, () => NOW);
+
+  async function issuesOf(promise: Promise<unknown>) {
+    const error = await promise.then(
+      () => undefined,
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(PublishValidationError);
+    return (error as PublishValidationError).issues;
+  }
+
+  it('필수 키가 빠지면 missing_required로 막는다. 예외 환경에서는 없어도 된다', async () => {
+    await schemas().put('server', 'DATABASE_URL', { required: true, optionalIn: ['local'] }, 'u1');
+
+    expect(await issuesOf(publish({ changes: { set: { A: '1' } } }))).toEqual([
+      { code: 'missing_required', key: 'DATABASE_URL' },
+    ]);
+    expect(await issuesOf(publish({ changes: { set: { DATABASE_URL: '' } } }))).toEqual([
+      { code: 'missing_required', key: 'DATABASE_URL' },
+    ]);
+    await expect(publish({ env: 'local', changes: { set: { A: '1' } } })).resolves.toMatchObject({
+      version: 1,
+    });
+  });
+
+  it('타입이 틀리면 invalid_type으로 막는다', async () => {
+    await schemas().put('server', 'PORT', { type: 'number' }, 'u1');
+    await schemas().put('server', 'API_URL', { type: 'url' }, 'u1');
+
+    expect(
+      await issuesOf(publish({ changes: { set: { PORT: 'eighty', API_URL: 'localhost:3000' } } })),
+    ).toEqual([
+      { code: 'invalid_type', key: 'API_URL', expected: 'url' },
+      { code: 'invalid_type', key: 'PORT', expected: 'number' },
+    ]);
+  });
+
+  it('공유 참조는 풀어서 타입을 검사하고, 깨진 참조는 참조 문제로만 알린다', async () => {
+    await schemas().put('server', 'API_URL', { type: 'url' }, 'u1');
+    await publish({ project: 'shared', changes: { set: { API_HOST: 'https://api.stream.dev' } } });
+
+    await expect(
+      publish({ changes: { set: { API_URL: '${shared.API_HOST}' } } }),
+    ).resolves.toMatchObject({ version: 1 });
+    expect(
+      await issuesOf(publish({ baseVersion: 1, changes: { set: { API_URL: '${shared.NOPE}' } } })),
+    ).toEqual([{ code: 'missing_reference', key: 'API_URL', reference: '${shared.NOPE}' }]);
+  });
+
+  it('스키마에 없는 키는 막지 않는다', async () => {
+    await schemas().put('server', 'A', { type: 'number' }, 'u1');
+    await expect(publish({ changes: { set: { A: '1', EXTRA: 'x' } } })).resolves.toMatchObject({
+      version: 1,
+    });
   });
 });

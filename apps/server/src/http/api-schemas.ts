@@ -60,6 +60,14 @@ export const deliveredValuesSchema = z
     version: z.number().int(),
     sharedVersion: z.number().int(),
     variables: variablesSchema,
+    exposure: z.object({
+      exposedSecrets: z
+        .array(z.string())
+        .describe('secret인데 공개 접두사가 붙은 키. pull·run을 막는다'),
+      unregistered: z
+        .array(z.string())
+        .describe('스키마에 없는데 공개 접두사가 붙은 키. 경고만 한다'),
+    }),
   })
   .meta({ id: 'DeliveredValues' });
 

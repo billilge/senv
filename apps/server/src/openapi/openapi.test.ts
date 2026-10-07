@@ -78,7 +78,7 @@ describe('OpenAPI 문서', () => {
     const schema = document.components?.schemas?.[name] as { properties: Record<string, unknown> };
     expect(name).toBe('DeliveredValues');
     expect(Object.keys(schema.properties).sort()).toEqual(
-      ['env', 'project', 'sharedVersion', 'variables', 'version'].sort(),
+      ['env', 'exposure', 'project', 'sharedVersion', 'variables', 'version'].sort(),
     );
   });
 

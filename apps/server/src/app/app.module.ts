@@ -91,8 +91,9 @@ export class AppModule {
         },
         {
           provide: DeliveryService,
-          useFactory: (publishing: PublishService) => new DeliveryService(publishing),
-          inject: [PublishService],
+          useFactory: (publishing: PublishService, keySchemas: KeySchemaService) =>
+            new DeliveryService(publishing, keySchemas),
+          inject: [PublishService, KeySchemaService],
         },
         {
           provide: AuthService,

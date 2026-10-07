@@ -1,4 +1,11 @@
-import { type ReferenceIssue, resolveSharedReferences, SHARED_PROJECT_NAME } from '@senv/core';
+import {
+  checkClientExposure,
+  type ExposureResult,
+  type ReferenceIssue,
+  resolveSharedReferences,
+  SHARED_PROJECT_NAME,
+} from '@senv/core';
+import type { KeySchemaService } from '../key-schemas/key-schema-service.js';
 import { ProjectNotFoundError } from '../projects/projects-service.js';
 import type { CurrentValues, PublishService } from '../publishing/publish-service.js';
 
@@ -10,6 +17,8 @@ export interface DeliveredValues {
   /** 해석에 쓴 공유 그룹 버전. 둘 중 하나만 바뀌어도 로컬 파일은 오래된 것이다 */
   sharedVersion: number;
   variables: Record<string, string>;
+  /** 클라이언트 번들에 들어가는 키 검사 (PRD 6.3). CLI가 secret 노출이면 pull·run을 멈춘다 */
+  exposure: ExposureResult;
 }
 
 export class BrokenReferenceError extends Error {
@@ -22,13 +31,22 @@ export class BrokenReferenceError extends Error {
 }
 
 export class DeliveryService {
-  constructor(private readonly publishing: PublishService) {}
+  constructor(
+    private readonly publishing: PublishService,
+    private readonly keySchemas: KeySchemaService,
+  ) {}
 
   /** 현재 값을 꺼내 공유 참조를 해석한다. 참조가 깨져 있으면 값을 돌려주지 않는다 */
   async resolve(project: string, env: string): Promise<DeliveredValues> {
     const current = await this.publishing.getCurrent(project, env);
     if (project === SHARED_PROJECT_NAME) {
-      return { project, env, ...current, sharedVersion: current.version };
+      return {
+        project,
+        env,
+        ...current,
+        sharedVersion: current.version,
+        exposure: await this.exposure(project, current.variables),
+      };
     }
 
     const shared = await this.sharedValues(env);
@@ -41,7 +59,16 @@ export class DeliveryService {
       version: current.version,
       sharedVersion: shared.version,
       variables: resolved.values,
+      exposure: await this.exposure(project, resolved.values),
     };
+  }
+
+  private async exposure(
+    project: string,
+    variables: Record<string, string>,
+  ): Promise<ExposureResult> {
+    const schema = await this.keySchemas.get(project);
+    return checkClientExposure(Object.keys(variables), schema.keys, schema.publicPrefixes);
   }
 
   private async sharedValues(env: string): Promise<CurrentValues> {

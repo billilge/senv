@@ -113,6 +113,7 @@ describe('게시와 값 조회 API', () => {
       version: 1,
       sharedVersion: 1,
       variables: { VITE_API_URL: 'https://api.stream.dev', VITE_MODE: 'prod' },
+      exposure: { exposedSecrets: [], unregistered: [] },
     });
   });
 
