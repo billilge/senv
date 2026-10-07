@@ -4,6 +4,7 @@ import {
   HistoryIcon,
   PencilIcon,
   RepoIcon,
+  RocketIcon,
   StackIcon,
   TableIcon,
 } from '@primer/octicons-react';
@@ -15,6 +16,7 @@ import { CopyDialog } from '../project/copy-dialog';
 import { EnvironmentEditor } from '../project/environment-editor';
 import { KeySchemaPanel } from '../project/key-schema';
 import { Matrix } from '../project/matrix';
+import { ProjectTargets } from '../project/project-targets';
 import {
   type EnvironmentName,
   type EnvironmentValues,
@@ -25,7 +27,7 @@ import {
 import { VersionHistory } from '../project/version-history';
 import list from '../ui/list-box.module.css';
 
-export type ProjectTab = 'values' | 'history' | 'schema';
+export type ProjectTab = 'values' | 'history' | 'schema' | 'targets';
 
 export function ProjectPage({
   project,
@@ -88,11 +90,23 @@ export function ProjectPage({
         >
           키 스키마
         </UnderlineNav.Item>
+        {kind === 'app' && (
+          <UnderlineNav.Item
+            as={Link}
+            to={`/projects/${project}/targets`}
+            icon={RocketIcon}
+            aria-current={tab === 'targets' ? 'page' : undefined}
+          >
+            배포
+          </UnderlineNav.Item>
+        )}
       </UnderlineNav>
       {tab === 'values' ? (
         <ProjectValues project={project} kind={kind} envs={envs} />
       ) : tab === 'schema' ? (
         <KeySchemaPanel project={project} envs={envs} />
+      ) : tab === 'targets' ? (
+        <ProjectTargets project={project} envs={envs} />
       ) : (
         <VersionHistory
           project={project}

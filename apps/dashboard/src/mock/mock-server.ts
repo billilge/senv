@@ -12,11 +12,24 @@ import {
   isValidKeyName,
   isValidProjectName,
   isValidPublicPrefix,
+  matchesKeyFilter,
   resolveSharedReferences,
   SHARED_PROJECT_NAME,
   validateEnvironment,
   versionRo,
 } from '@senv/core';
+import {
+  connectionView,
+  initialTargets,
+  MOCK_PROVIDER,
+  MOCK_RESOURCES,
+  type MockConnection,
+  type MockMapping,
+  type MockRun,
+  type MockTargetsState,
+  mappingView,
+  planFor,
+} from './mock-targets';
 
 /**
  * 디자인 확인용 목업 서버 (`pnpm dev:mock`). 서버·DB·GitHub 없이 브라우저 안에서 API를 흉내 낸다.
@@ -61,6 +74,8 @@ export interface MockState {
   schemas?: Record<string, ProjectSchema>;
   /** 역할 미리 지정 (결정 45) */
   assignments?: { login: string; role: 'admin' | 'member'; createdAt: string }[];
+  /** 배포 대상 (결정 56). 예전에 저장한 목업 데이터에는 없을 수 있다 */
+  targets?: MockTargetsState;
 }
 
 const schemaKey = (key: string, fields: Partial<KeySchema> = {}): KeySchema => ({
@@ -365,6 +380,9 @@ export class MockServer {
       return this.schema(me, method, name, part, key, body);
     }
 
+    if (path.startsWith('/api/v1/targets') || /^\/api\/v1\/projects\/[^/]+\/targets$/.test(path)) {
+      return this.targetRoutes(me, method, path, body);
+    }
     if (path.startsWith('/api/v1/role-assignments')) {
       return this.assignments(me, method, path, body);
     }
@@ -488,6 +506,308 @@ export class MockServer {
         state.assignments = current.filter((other) => other.login !== login);
       });
       return new Reply(204);
+    }
+    return problem(404, 'not_found', `목업에 없는 경로: ${method} ${path}`);
+  }
+
+  private targetsState(): MockTargetsState {
+    return this.state.targets ?? initialTargets();
+  }
+
+  private saveTargets(change: (targets: MockTargetsState) => void) {
+    this.update((state) => {
+      const targets = structuredClone(state.targets ?? initialTargets());
+      change(targets);
+      state.targets = targets;
+    });
+  }
+
+  /** pull·동기화가 받는 값 (공유 참조를 푼 값) */
+  private delivered(project: string, env: EnvironmentName) {
+    const snapshot = this.state.values[project]?.[env];
+    const variables = snapshot?.variables ?? {};
+    const sharedSnapshot = this.state.values[SHARED_PROJECT_NAME]?.[env];
+    return {
+      version: snapshot?.version ?? 0,
+      sharedVersion: sharedSnapshot?.version ?? 0,
+      variables:
+        project === SHARED_PROJECT_NAME
+          ? variables
+          : resolveSharedReferences(variables, sharedSnapshot?.variables ?? {}).values,
+    };
+  }
+
+  private buildTimeKeys(project: string) {
+    return new Set(
+      this.schemaOf(project)
+        .keys.filter((entry) => entry.buildTime)
+        .map((entry) => entry.key),
+    );
+  }
+
+  /** 게시하면 자동 매핑에 바로 반영한다 (worker 흉내, 결정 53) */
+  private autoSync(project: string, env: EnvironmentName) {
+    for (const mapping of this.targetsState().mappings) {
+      if (mapping.syncMode !== 'auto' || mapping.env !== env) continue;
+      if (project !== SHARED_PROJECT_NAME && mapping.project !== project) continue;
+      this.syncMapping(mapping.id, 'publish');
+    }
+  }
+
+  private syncMapping(id: string, trigger: 'publish' | 'manual'): MockRun | null {
+    const mapping = this.targetsState().mappings.find((candidate) => candidate.id === id);
+    if (!mapping) return null;
+    const delivered = this.delivered(mapping.project, mapping.env);
+    const remote = this.targetsState().remote[mapping.resourceId] ?? {};
+    const { plan, action, managed } = planFor(
+      mapping,
+      delivered.variables,
+      this.buildTimeKeys(mapping.project),
+      remote,
+    );
+    const changedKeys = [
+      ...plan.add.map((v) => v.key),
+      ...plan.change.map((v) => v.key),
+      ...plan.remove,
+    ].sort();
+    const now = new Date().toISOString();
+    const run: MockRun = {
+      id: `run-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      trigger,
+      status: changedKeys.length > 0 ? 'succeeded' : 'skipped',
+      version: delivered.version,
+      sharedVersion: delivered.sharedVersion,
+      changedKeys,
+      action: changedKeys.length > 0 ? action : null,
+      providerRef: changedKeys.length > 0 ? `dep-${Math.random().toString(36).slice(2, 8)}` : null,
+      error: null,
+      attempt: 1,
+      startedAt: now,
+      finishedAt: now,
+    };
+    this.saveTargets((targets) => {
+      const next = { ...(targets.remote[mapping.resourceId] ?? {}) };
+      for (const variable of [...plan.add, ...plan.change]) next[variable.key] = variable.value;
+      for (const key of plan.remove) delete next[key];
+      targets.remote[mapping.resourceId] = next;
+      targets.runs[id] = [run, ...(targets.runs[id] ?? [])].slice(0, 20);
+      const target = targets.mappings.find((candidate) => candidate.id === id);
+      if (target) {
+        target.lastSynced = managed;
+        target.lastSync = {
+          version: delivered.version,
+          sharedVersion: delivered.sharedVersion,
+          at: now,
+        };
+        target.driftKeys = [];
+      }
+    });
+    return run;
+  }
+
+  private targetRoutes(
+    me: User,
+    method: string,
+    path: string,
+    body: Record<string, unknown>,
+  ): Reply {
+    const targets = this.targetsState();
+    const adminOnly = () => problem(403, 'admin_required', '관리자만 할 수 있습니다');
+
+    if (path === '/api/v1/targets/providers' && method === 'GET') {
+      return new Reply(200, { providers: [MOCK_PROVIDER] });
+    }
+    const projectTargets = path.match(/^\/api\/v1\/projects\/([^/]+)\/targets$/);
+    if (projectTargets) {
+      const project = projectTargets[1] ?? '';
+      if (method === 'GET') {
+        return new Reply(200, {
+          mappings: targets.mappings
+            .filter((m) => m.project === project)
+            .map((m) => mappingView(m, targets)),
+        });
+      }
+      if (method === 'POST') {
+        if (me.role !== 'admin') return adminOnly();
+        if (project === SHARED_PROJECT_NAME) {
+          return problem(422, 'shared_not_deployable', '공유 그룹은 배포 대상에 매핑하지 않습니다');
+        }
+        const resource = MOCK_RESOURCES.find((candidate) => candidate.id === body.resourceId);
+        if (!resource) return problem(404, 'target_resource_not_found', '리소스가 없습니다');
+        if (targets.mappings.some((m) => m.resourceId === resource.id)) {
+          return problem(
+            409,
+            'resource_already_mapped',
+            `이미 다른 매핑이 쓰는 리소스입니다: ${resource.name}`,
+          );
+        }
+        const mapping: MockMapping = {
+          id: `m-${Date.now()}`,
+          project,
+          env: body.env as EnvironmentName,
+          connectionId: String(body.connectionId),
+          resourceId: resource.id,
+          resourceName: resource.name,
+          syncMode: body.syncMode === 'manual' ? 'manual' : 'auto',
+          afterSync: (body.afterSync as MockMapping['afterSync']) ?? 'auto',
+          unmanaged: body.unmanaged === 'delete' ? 'delete' : 'keep',
+          include: (body.include as string[]) ?? [],
+          exclude: (body.exclude as string[]) ?? [],
+          options: (body.options as Record<string, unknown>) ?? {},
+          lastSynced: null,
+          lastSync: null,
+          driftKeys: [],
+          driftCheckedAt: null,
+        };
+        this.saveTargets((next) => next.mappings.push(mapping));
+        return new Reply(201, mappingView(mapping, this.targetsState()));
+      }
+    }
+
+    if (path === '/api/v1/targets/connections') {
+      if (me.role !== 'admin') return adminOnly();
+      if (method === 'GET') {
+        return new Reply(200, {
+          connections: targets.connections.map((c) => connectionView(c, targets)),
+        });
+      }
+      if (method === 'POST') {
+        const config = (body.config ?? {}) as { url?: string; token?: string };
+        if (config.token === 'bad')
+          return problem(422, 'target_auth_failed', 'Coolify가 API 토큰을 거부했습니다');
+        if (!config.url || !config.token)
+          return problem(422, 'invalid_target_config', '주소와 토큰이 필요합니다');
+        const now = new Date().toISOString();
+        const connection: MockConnection = {
+          id: `c-${Date.now()}`,
+          name: String(body.name),
+          type: 'coolify',
+          config: { url: config.url },
+          createdAt: now,
+          updatedAt: now,
+        };
+        this.saveTargets((next) => next.connections.push(connection));
+        return new Reply(201, connectionView(connection, this.targetsState()));
+      }
+    }
+    const connectionMatch = path.match(
+      /^\/api\/v1\/targets\/connections\/([^/]+)(?:\/(test|resources))?$/,
+    );
+    if (connectionMatch) {
+      if (me.role !== 'admin') return adminOnly();
+      const [, id, action] = connectionMatch;
+      const connection = targets.connections.find((candidate) => candidate.id === id);
+      if (!connection) return problem(404, 'connection_not_found', '배포 대상 연결이 없습니다');
+      if (action === 'test' && method === 'POST') return new Reply(204);
+      if (action === 'resources' && method === 'GET')
+        return new Reply(200, { resources: MOCK_RESOURCES });
+      if (!action && method === 'PATCH') {
+        this.saveTargets((next) => {
+          const target = next.connections.find((candidate) => candidate.id === id);
+          if (target && typeof body.name === 'string') target.name = body.name;
+          const url = (body.config as { url?: string } | undefined)?.url;
+          if (target && url) target.config.url = url;
+        });
+        const updated = this.targetsState().connections.find((candidate) => candidate.id === id);
+        return new Reply(200, updated ? connectionView(updated, this.targetsState()) : {});
+      }
+      if (!action && method === 'DELETE') {
+        if (targets.mappings.some((m) => m.connectionId === id)) {
+          return problem(
+            409,
+            'connection_in_use',
+            '매핑이 있는 연결은 지울 수 없습니다. 매핑을 먼저 지우세요',
+          );
+        }
+        this.saveTargets((next) => {
+          next.connections = next.connections.filter((candidate) => candidate.id !== id);
+        });
+        return new Reply(204);
+      }
+    }
+
+    const mappingMatch = path.match(
+      /^\/api\/v1\/targets\/mappings\/([^/]+)(?:\/(plan|sync|runs|import|drift))?$/,
+    );
+    if (mappingMatch) {
+      const [, id = '', action] = mappingMatch;
+      const mapping = targets.mappings.find((candidate) => candidate.id === id);
+      if (!mapping) return problem(404, 'mapping_not_found', '배포 대상 매핑이 없습니다');
+      if (!action && (method === 'PATCH' || method === 'DELETE') && me.role !== 'admin')
+        return adminOnly();
+      if (!action && method === 'DELETE') {
+        this.saveTargets((next) => {
+          next.mappings = next.mappings.filter((candidate) => candidate.id !== id);
+        });
+        return new Reply(204);
+      }
+      if (!action && method === 'PATCH') {
+        this.saveTargets((next) => {
+          const target = next.mappings.find((candidate) => candidate.id === id);
+          if (target) Object.assign(target, body);
+        });
+        const updated = this.targetsState().mappings.find((candidate) => candidate.id === id);
+        return new Reply(200, updated ? mappingView(updated, this.targetsState()) : {});
+      }
+      if (action === 'plan' && method === 'GET') {
+        const delivered = this.delivered(mapping.project, mapping.env);
+        const { plan, action: after } = planFor(
+          mapping,
+          delivered.variables,
+          this.buildTimeKeys(mapping.project),
+          targets.remote[mapping.resourceId] ?? {},
+        );
+        return new Reply(200, {
+          version: delivered.version,
+          sharedVersion: delivered.sharedVersion,
+          add: plan.add.map((v) => v.key),
+          change: plan.change.map((v) => v.key),
+          remove: plan.remove,
+          unchanged: plan.unchanged.length,
+          action: after,
+        });
+      }
+      if (action === 'sync' && method === 'POST')
+        return new Reply(200, this.syncMapping(id, 'manual'));
+      if (action === 'runs' && method === 'GET')
+        return new Reply(200, { runs: targets.runs[id] ?? [] });
+      if (action === 'drift' && method === 'POST') {
+        const remote = targets.remote[mapping.resourceId] ?? {};
+        const driftKeys = Object.entries(mapping.lastSynced ?? {})
+          .filter(([key, value]) => remote[key] !== value)
+          .map(([key]) => key)
+          .sort();
+        this.saveTargets((next) => {
+          const target = next.mappings.find((candidate) => candidate.id === id);
+          if (target) {
+            target.driftKeys = driftKeys;
+            target.driftCheckedAt = new Date().toISOString();
+          }
+        });
+        return new Reply(200, { driftKeys });
+      }
+      if (action === 'import' && method === 'POST') {
+        const remote = targets.remote[mapping.resourceId] ?? {};
+        const current = this.state.values[mapping.project]?.[mapping.env];
+        const set = Object.fromEntries(
+          Object.entries(remote).filter(
+            ([key, value]) =>
+              matchesKeyFilter(key, mapping.include, mapping.exclude) &&
+              current?.variables[key] !== value,
+          ),
+        );
+        if (Object.keys(set).length === 0) return problem(422, 'no_changes', '바뀐 값이 없습니다');
+        const reply = this.publish(me, mapping.project, mapping.env, {
+          baseVersion: current?.version ?? 0,
+          changes: { set },
+          message: `${mapping.resourceName}에서 가져옴`,
+        });
+        if (reply.status !== 201) return reply;
+        return new Reply(201, {
+          version: (reply.body as { version: number }).version,
+          keys: Object.keys(set).sort(),
+        });
+      }
     }
     return problem(404, 'not_found', `목업에 없는 경로: ${method} ${path}`);
   }
@@ -660,6 +980,7 @@ export class MockServer {
       };
       target[env] = { version, variables: next, history: [...historyOf(target[env]), entry] };
     });
+    this.autoSync(name, env as EnvironmentName);
     return new Reply(201, { version, diff });
   }
 

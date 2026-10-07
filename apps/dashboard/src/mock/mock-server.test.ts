@@ -268,4 +268,54 @@ describe('목업 서버', () => {
       (await setup({ persona: 'member' }).call('GET', '/api/v1/role-assignments')).status,
     ).toBe(403);
   });
+
+  it('배포 대상: 제공자·연결·매핑을 주고, 연결 토큰이 틀리면 422다', async () => {
+    const { call } = setup();
+    expect((await call('GET', '/api/v1/targets/providers')).body.providers[0]).toMatchObject({
+      type: 'coolify',
+    });
+    expect((await call('GET', '/api/v1/targets/connections')).body.connections).toHaveLength(1);
+    expect((await call('GET', '/api/v1/projects/server/targets')).body.mappings[0]).toMatchObject({
+      env: 'production',
+      resourceName: 'stream-api-prod',
+    });
+    const bad = await call('POST', '/api/v1/targets/connections', {
+      name: 'x',
+      type: 'coolify',
+      config: { url: 'https://c', token: 'bad' },
+    });
+    expect(bad).toMatchObject({ status: 422, body: { code: 'target_auth_failed' } });
+  });
+
+  it('계획을 보고 동기화하면 원격에 반영되고, 다시 보면 바뀐 것이 없다', async () => {
+    const { call } = setup();
+    const [mapping] = (await call('GET', '/api/v1/projects/server/targets')).body.mappings;
+    const plan = (await call('GET', `/api/v1/targets/mappings/${mapping.id}/plan`)).body;
+    expect(plan.add.length + plan.change.length + plan.remove.length).toBeGreaterThan(0);
+
+    const run = (await call('POST', `/api/v1/targets/mappings/${mapping.id}/sync`)).body;
+    expect(run).toMatchObject({ status: 'succeeded', trigger: 'manual' });
+    expect((await call('GET', `/api/v1/targets/mappings/${mapping.id}/plan`)).body).toMatchObject({
+      add: [],
+      change: [],
+      remove: [],
+    });
+    expect(
+      (await call('GET', `/api/v1/targets/mappings/${mapping.id}/runs`)).body.runs[0],
+    ).toMatchObject({ id: run.id });
+  });
+
+  it('게시하면 자동 매핑에 바로 반영한다 (worker 흉내)', async () => {
+    const { call } = setup();
+    const [mapping] = (await call('GET', '/api/v1/projects/server/targets')).body.mappings;
+    await call('POST', `/api/v1/targets/mappings/${mapping.id}/sync`);
+    const { version } = (await call('GET', '/api/v1/projects/server/envs/production')).body;
+    await call('POST', '/api/v1/projects/server/envs/production/versions', {
+      baseVersion: version,
+      changes: { set: { LOG_LEVEL: 'warn' } },
+    });
+
+    const [latest] = (await call('GET', `/api/v1/targets/mappings/${mapping.id}/runs`)).body.runs;
+    expect(latest).toMatchObject({ trigger: 'publish', changedKeys: ['LOG_LEVEL'] });
+  });
 });

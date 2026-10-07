@@ -11,6 +11,7 @@ import { DevicePage } from './pages/device-page';
 import { LoginPage } from './pages/login-page';
 import { ProjectPage } from './pages/project-page';
 import { ProjectsPage } from './pages/projects-page';
+import { TargetsPage } from './pages/targets-page';
 import { UsersPage } from './pages/users-page';
 
 const rootRoute = createRootRoute({ component: Outlet });
@@ -64,6 +65,19 @@ const projectSchemaRoute = createRoute({
     return <ProjectPage project={project} tab="schema" />;
   },
 });
+const projectTargetsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/projects/$project/targets',
+  component: function ProjectTargetsTab() {
+    const { project } = projectTargetsRoute.useParams();
+    return <ProjectPage project={project} tab="targets" />;
+  },
+});
+const targetsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/admin/targets',
+  component: TargetsPage,
+});
 const deviceRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/device',
@@ -88,6 +102,8 @@ const routeTree = rootRoute.addChildren([
     projectRoute,
     projectHistoryRoute,
     projectSchemaRoute,
+    projectTargetsRoute,
+    targetsRoute,
     deviceRoute,
     usersRoute,
   ]),

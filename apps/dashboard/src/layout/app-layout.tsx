@@ -1,4 +1,4 @@
-import { KeyIcon, PeopleIcon, RepoIcon } from '@primer/octicons-react';
+import { KeyIcon, PeopleIcon, RepoIcon, ServerIcon } from '@primer/octicons-react';
 import { ActionList, ActionMenu, Avatar, Spinner, Text, UnderlineNav } from '@primer/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
@@ -95,9 +95,19 @@ function TopBar({ me, showNav }: { me: User; showNav: boolean }) {
               to="/admin/users"
               icon={PeopleIcon}
               counter={pendingCount > 0 ? pendingCount : undefined}
-              aria-current={pathname.startsWith('/admin') ? 'page' : undefined}
+              aria-current={pathname.startsWith('/admin/users') ? 'page' : undefined}
             >
               사용자 관리
+            </UnderlineNav.Item>
+          )}
+          {isAdmin && (
+            <UnderlineNav.Item
+              as={Link}
+              to="/admin/targets"
+              icon={ServerIcon}
+              aria-current={pathname.startsWith('/admin/targets') ? 'page' : undefined}
+            >
+              배포 대상
             </UnderlineNav.Item>
           )}
         </UnderlineNav>
