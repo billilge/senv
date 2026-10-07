@@ -88,6 +88,11 @@ export async function createTestContext(
     }),
     anonymousApi,
     credentials,
+    prompt: {
+      select: async () => {
+        throw new Error('테스트에서 정한 답이 없습니다');
+      },
+    },
     openBrowser: async (url) => {
       opened.push(url);
     },
