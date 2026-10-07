@@ -1,3 +1,4 @@
+import { type EnvironmentName, isEnvironmentName } from '@senv/core';
 import {
   createRootRoute,
   createRoute,
@@ -43,6 +44,18 @@ const projectRoute = createRoute({
     return <ProjectPage project={project} />;
   },
 });
+const projectHistoryRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/projects/$project/history',
+  validateSearch: (search: Record<string, unknown>): { env?: EnvironmentName } => ({
+    env: typeof search.env === 'string' && isEnvironmentName(search.env) ? search.env : undefined,
+  }),
+  component: function ProjectHistory() {
+    const { project } = projectHistoryRoute.useParams();
+    const { env } = projectHistoryRoute.useSearch();
+    return <ProjectPage project={project} tab="history" env={env} />;
+  },
+});
 const deviceRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/device',
@@ -62,7 +75,7 @@ const usersRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([projectsRoute, projectRoute, deviceRoute, usersRoute]),
+  appRoute.addChildren([projectsRoute, projectRoute, projectHistoryRoute, deviceRoute, usersRoute]),
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

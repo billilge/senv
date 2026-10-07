@@ -135,4 +135,58 @@ describe('목업 서버', () => {
       code: 'project_name_taken',
     });
   });
+
+  it('버전 기록을 최신부터 작성자와 함께 주고, 지난 버전의 값을 준다', async () => {
+    const { call } = setup();
+    const { versions } = (await call('GET', '/api/v1/projects/server/envs/local/versions')).body;
+    const current = (await call('GET', '/api/v1/projects/server/envs/local')).body;
+
+    expect(versions[0]).toMatchObject({
+      version: current.version,
+      author: { login: expect.any(String) },
+    });
+    expect(versions.map((v: { version: number }) => v.version)).toEqual(
+      Array.from({ length: current.version }, (_, i) => current.version - i),
+    );
+    expect((await call('GET', '/api/v1/projects/server/envs/local/versions/1')).body).toMatchObject(
+      {
+        version: 1,
+        variables: expect.any(Object),
+      },
+    );
+    expect(
+      (await call('GET', '/api/v1/projects/server/envs/local/versions/99')).body,
+    ).toMatchObject({
+      code: 'version_not_found',
+    });
+  });
+
+  it('게시하면 기록에 남고, 되돌리면 지난 버전의 값으로 새 버전을 만든다', async () => {
+    const { call } = setup();
+    const before = (await call('GET', '/api/v1/projects/server/envs/local')).body;
+    await call('POST', '/api/v1/projects/server/envs/local/versions', {
+      baseVersion: before.version,
+      changes: { set: { NEW_KEY: 'v' } },
+      message: '새 키',
+    });
+    const [latest] = (await call('GET', '/api/v1/projects/server/envs/local/versions')).body
+      .versions;
+    expect(latest).toMatchObject({
+      version: before.version + 1,
+      message: '새 키',
+      author: { login: 'alice' },
+    });
+
+    const rolled = await call('POST', '/api/v1/projects/server/envs/local/rollback', {
+      toVersion: before.version,
+      baseVersion: before.version + 1,
+    });
+    expect(rolled).toMatchObject({ status: 201, body: { version: before.version + 2 } });
+    expect((await call('GET', '/api/v1/projects/server/envs/local')).body.variables).toEqual(
+      before.variables,
+    );
+    const [rollback] = (await call('GET', '/api/v1/projects/server/envs/local/versions')).body
+      .versions;
+    expect(rollback.message).toMatch(/로 되돌림$/);
+  });
 });

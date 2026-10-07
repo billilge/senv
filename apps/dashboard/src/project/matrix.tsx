@@ -1,10 +1,9 @@
 import { EyeIcon } from '@primer/octicons-react';
 import { Button, CounterLabel, Label, Stack } from '@primer/react';
-import { useEffect, useState } from 'react';
 import table from '../ui/data-table.module.css';
+import { useReveal } from '../ui/use-reveal';
 import type { EnvironmentName, EnvironmentValues } from './queries';
 
-const REVEAL_MS = 30_000;
 /** 환경 이름 뒤에 붙는 조사 (로컬→과, 디벨롭먼트→와, 프로덕션→과) */
 const WITH: Record<EnvironmentName, string> = { local: '과', development: '와', production: '과' };
 
@@ -79,12 +78,7 @@ function MatrixCell({
   value: string | undefined;
   sameAs: EnvironmentName[];
 }) {
-  const [revealed, setRevealed] = useState(false);
-  useEffect(() => {
-    if (!revealed) return;
-    const timer = setTimeout(() => setRevealed(false), REVEAL_MS);
-    return () => clearTimeout(timer);
-  }, [revealed]);
+  const { revealed, reveal } = useReveal();
 
   if (value === undefined) return <Label variant="attention">누락</Label>;
   const last = sameAs.at(-1);
@@ -101,7 +95,7 @@ function MatrixCell({
               variant="invisible"
               leadingVisual={EyeIcon}
               aria-label={`${name} 값 보기`}
-              onClick={() => setRevealed(true)}
+              onClick={reveal}
             >
               보기
             </Button>

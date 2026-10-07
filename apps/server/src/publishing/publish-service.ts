@@ -11,6 +11,7 @@ import {
   resolveSharedReferences,
   SHARED_PROJECT_NAME,
   type VariableDiff,
+  versionRo,
 } from '@senv/core';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { ProjectNotFoundError } from '../projects/projects-service.js';
@@ -75,7 +76,7 @@ export interface RollbackInput {
   /** 이 버전의 값으로 되돌린다 */
   toVersion: number;
   baseVersion: number;
-  /** 생략하면 "v{toVersion}으로 되돌림" */
+  /** 생략하면 "v1로 되돌림"처럼 남긴다 */
   message?: string;
   actor: string;
 }
@@ -232,7 +233,7 @@ export class PublishService {
       env: input.env,
       baseVersion: input.baseVersion,
       changes: createChangeSet(base, wanted),
-      message: input.message ?? `v${input.toVersion}으로 되돌림`,
+      message: input.message ?? `${versionRo(input.toVersion)} 되돌림`,
       actor: input.actor,
     });
   }

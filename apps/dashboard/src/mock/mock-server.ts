@@ -3,6 +3,7 @@ import type { ApiSchemas } from '@senv/api-client';
 import {
   applyChangeSet,
   type ChangeSet,
+  createChangeSet,
   diffVariables,
   ENVIRONMENT_NAMES,
   type EnvironmentName,
@@ -12,6 +13,7 @@ import {
   isValidProjectName,
   resolveSharedReferences,
   SHARED_PROJECT_NAME,
+  versionRo,
 } from '@senv/core';
 
 /**
@@ -25,9 +27,19 @@ type Project = ApiSchemas['Project'];
 export type MockPersona = 'admin' | 'member' | 'pending' | 'signed-out';
 type SignedInPersona = Exclude<MockPersona, 'signed-out'>;
 
+interface VersionRecord {
+  version: number;
+  variables: Record<string, string>;
+  message: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 interface Snapshot {
   version: number;
   variables: Record<string, string>;
+  /** 버전 기록. 예전에 저장한 목업 데이터에는 없을 수 있다 */
+  history?: VersionRecord[];
 }
 
 export interface MockState {
@@ -66,7 +78,31 @@ const project = (name: string, displayName: string, kind: Project['kind'] = 'app
 const snap = (version: number, variables: Record<string, string> = {}): Snapshot => ({
   version,
   variables,
+  history: Array.from({ length: version }, (_, index) => record(index + 1, version, variables)),
 });
+
+const AUTHORS = ['u-alice', 'u-carol', 'u-alice', 'u-dave'];
+const MESSAGES = ['초기 값', '키 추가', '값 정리', '주소 변경', '설정 보강'];
+
+/** 예시 기록: 앞 버전일수록 키가 적다. 마지막 버전은 지금 값과 같다 */
+function record(version: number, last: number, variables: Record<string, string>): VersionRecord {
+  const keys = Object.keys(variables).sort();
+  const count = Math.ceil((keys.length * version) / last);
+  return {
+    version,
+    variables: Object.fromEntries(keys.slice(0, count).map((key) => [key, variables[key] ?? ''])),
+    message: MESSAGES[(version - 1) % MESSAGES.length] ?? '',
+    createdBy: AUTHORS[(version - 1) % AUTHORS.length] ?? 'u-alice',
+    createdAt: new Date(Date.UTC(2026, 9, 1 + version, 9 + version)).toISOString(),
+  };
+}
+
+/** 기록이 없는 예전 목업 데이터는 지금 값 하나만 기록으로 본다 */
+function historyOf(snapshot: Snapshot): VersionRecord[] {
+  if (snapshot.history) return snapshot.history;
+  if (snapshot.version === 0) return [];
+  return [{ ...record(snapshot.version, snapshot.version, snapshot.variables), message: '' }];
+}
 
 export function initialMockState(): MockState {
   return {
@@ -237,11 +273,21 @@ export class MockServer {
       if (method === 'POST') return this.createProject(me, body);
     }
 
-    const env = path.match(/^\/api\/v1\/projects\/([^/]+)\/envs\/([^/]+)(\/versions)?$/);
+    const env = path.match(
+      /^\/api\/v1\/projects\/([^/]+)\/envs\/([^/]+)(?:\/(versions|rollback)(?:\/(\d+))?)?$/,
+    );
     if (env) {
-      const [, name = '', envName = '', versions] = env;
-      if (versions && method === 'POST') return this.publish(name, envName, body);
-      if (!versions && method === 'GET') return this.environment(name, envName);
+      const [, name = '', envName = '', action, version] = env;
+      if (!action && method === 'GET') return this.environment(name, envName);
+      if (action === 'versions' && !version && method === 'POST') {
+        return this.publish(me, name, envName, body);
+      }
+      if (action === 'versions' && !version && method === 'GET')
+        return this.versions(name, envName);
+      if (action === 'versions' && version && method === 'GET') {
+        return this.version(name, envName, Number(version));
+      }
+      if (action === 'rollback' && method === 'POST') return this.rollback(me, name, envName, body);
     }
 
     const single = path.match(/^\/api\/v1\/projects\/([^/]+)$/);
@@ -294,7 +340,41 @@ export class MockServer {
     return new Reply(200, { project: name, env, ...values[env] });
   }
 
-  private publish(name: string, env: string, body: Record<string, unknown>): Reply {
+  private versions(name: string, env: string): Reply {
+    const snapshot = this.state.values[name]?.[env as EnvironmentName];
+    if (!snapshot) return problem(404, 'project_not_found', `프로젝트가 없습니다: ${name}`);
+    const logins = new Map(this.state.users.map((user) => [user.id, user.login]));
+    const versions = [...historyOf(snapshot)].reverse().map((item) => ({
+      version: item.version,
+      message: item.message,
+      createdAt: item.createdAt,
+      author: { id: item.createdBy, login: logins.get(item.createdBy) ?? null },
+    }));
+    return new Reply(200, { versions });
+  }
+
+  private version(name: string, env: string, version: number): Reply {
+    const snapshot = this.state.values[name]?.[env as EnvironmentName];
+    if (!snapshot) return problem(404, 'project_not_found', `프로젝트가 없습니다: ${name}`);
+    const found = historyOf(snapshot).find((item) => item.version === version);
+    if (!found) return problem(404, 'version_not_found', `버전이 없습니다: v${version}`);
+    return new Reply(200, { project: name, env, version, variables: found.variables });
+  }
+
+  private rollback(me: User, name: string, env: string, body: Record<string, unknown>): Reply {
+    const snapshot = this.state.values[name]?.[env as EnvironmentName];
+    if (!snapshot) return problem(404, 'project_not_found', `프로젝트가 없습니다: ${name}`);
+    const toVersion = Number(body.toVersion);
+    const target = historyOf(snapshot).find((item) => item.version === toVersion);
+    if (!target) return problem(404, 'version_not_found', `버전이 없습니다: v${toVersion}`);
+    return this.publish(me, name, env, {
+      baseVersion: body.baseVersion,
+      changes: createChangeSet(snapshot.variables, target.variables),
+      message: typeof body.message === 'string' ? body.message : `${versionRo(toVersion)} 되돌림`,
+    });
+  }
+
+  private publish(me: User, name: string, env: string, body: Record<string, unknown>): Reply {
     const values = this.state.values[name];
     if (!values) return problem(404, 'project_not_found', `프로젝트가 없습니다: ${name}`);
     if (!isEnvironmentName(env)) {
@@ -340,7 +420,15 @@ export class MockServer {
     const version = current.version + 1;
     this.update((state) => {
       const target = state.values[name];
-      if (target) target[env] = { version, variables: next };
+      if (!target) return;
+      const entry: VersionRecord = {
+        version,
+        variables: next,
+        message: typeof body.message === 'string' ? body.message : '',
+        createdBy: me.id,
+        createdAt: new Date().toISOString(),
+      };
+      target[env] = { version, variables: next, history: [...historyOf(target[env]), entry] };
     });
     return new Reply(201, { version, diff });
   }

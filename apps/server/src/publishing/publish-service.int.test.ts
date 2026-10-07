@@ -415,7 +415,7 @@ describe('PublishService.rollback', () => {
       variables: { A: '1', B: '1' },
     });
     const [latest] = await service.listVersions('server', 'production');
-    expect(latest?.message).toBe('v1으로 되돌림');
+    expect(latest?.message).toBe('v1로 되돌림');
   });
 
   it('메시지를 주면 그 메시지로 남긴다', async () => {

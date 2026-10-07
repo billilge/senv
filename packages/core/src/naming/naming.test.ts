@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ENVIRONMENT_NAMES, isEnvironmentName, isValidProjectName } from './index';
+import { ENVIRONMENT_NAMES, isEnvironmentName, isValidProjectName, versionRo } from './index';
 
 describe('환경 이름', () => {
   it('local, development, production 세 개로 고정이다', () => {
@@ -32,5 +32,22 @@ describe('isValidProjectName', () => {
     ['33자', 'x'.repeat(33)],
   ])('%s(%s)는 거부한다', (_label, name) => {
     expect(isValidProjectName(name)).toBe(false);
+  });
+});
+
+describe('versionRo (버전 번호 + 조사 "로/으로")', () => {
+  it.each([
+    [1, 'v1로'],
+    [2, 'v2로'],
+    [3, 'v3으로'],
+    [6, 'v6으로'],
+    [7, 'v7로'],
+    [8, 'v8로'],
+    [10, 'v10으로'],
+    [11, 'v11로'],
+    [20, 'v20으로'],
+    [36, 'v36으로'],
+  ])('%i → %s', (version, phrase) => {
+    expect(versionRo(version)).toBe(phrase);
   });
 });

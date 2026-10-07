@@ -1,6 +1,7 @@
-import { PencilIcon, RepoIcon, StackIcon } from '@primer/octicons-react';
-import { Button, Flash, PageHeader, Spinner, Stack } from '@primer/react';
+import { HistoryIcon, PencilIcon, RepoIcon, StackIcon, TableIcon } from '@primer/octicons-react';
+import { Button, Flash, PageHeader, Spinner, Stack, UnderlineNav } from '@primer/react';
 import { SenvApiError } from '@senv/api-client';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { EnvironmentEditor } from '../project/environment-editor';
 import { Matrix } from '../project/matrix';
@@ -10,10 +11,23 @@ import {
   useEnvironmentValues,
   useProject,
 } from '../project/queries';
+import { VersionHistory } from '../project/version-history';
 import list from '../ui/list-box.module.css';
 
-export function ProjectPage({ project }: { project: string }) {
+export type ProjectTab = 'values' | 'history';
+
+export function ProjectPage({
+  project,
+  tab = 'values',
+  env,
+}: {
+  project: string;
+  tab?: ProjectTab;
+  /** 버전 기록 탭에서 보는 환경 (기본 local) */
+  env?: EnvironmentName;
+}) {
   const info = useProject(project);
+  const navigate = useNavigate();
 
   if (info.isPending) return <Spinner />;
   if (info.isError) {
@@ -25,24 +39,63 @@ export function ProjectPage({ project }: { project: string }) {
       </Flash>
     );
   }
+  const { displayName, kind, environments: envs } = info.data;
+
   return (
-    <ProjectValues
-      project={project}
-      displayName={info.data.displayName}
-      kind={info.data.kind}
-      envs={info.data.environments}
-    />
+    <Stack gap="normal">
+      <PageHeader>
+        <PageHeader.TitleArea>
+          <PageHeader.LeadingVisual>
+            {kind === 'shared' ? <StackIcon /> : <RepoIcon />}
+          </PageHeader.LeadingVisual>
+          <PageHeader.Title as="h2">{project}</PageHeader.Title>
+        </PageHeader.TitleArea>
+        <PageHeader.Description>{displayName}</PageHeader.Description>
+      </PageHeader>
+      <UnderlineNav aria-label="프로젝트 메뉴">
+        <UnderlineNav.Item
+          as={Link}
+          to={`/projects/${project}`}
+          icon={TableIcon}
+          aria-current={tab === 'values' ? 'page' : undefined}
+        >
+          값
+        </UnderlineNav.Item>
+        <UnderlineNav.Item
+          as={Link}
+          to={`/projects/${project}/history`}
+          icon={HistoryIcon}
+          aria-current={tab === 'history' ? 'page' : undefined}
+        >
+          버전 기록
+        </UnderlineNav.Item>
+      </UnderlineNav>
+      {tab === 'values' ? (
+        <ProjectValues project={project} kind={kind} envs={envs} />
+      ) : (
+        <VersionHistory
+          project={project}
+          envs={envs}
+          env={env ?? 'local'}
+          onEnvChange={(next) =>
+            navigate({
+              to: '/projects/$project/history',
+              params: { project },
+              search: { env: next },
+            })
+          }
+        />
+      )}
+    </Stack>
   );
 }
 
 function ProjectValues({
   project,
-  displayName,
   kind,
   envs,
 }: {
   project: string;
-  displayName: string;
   kind: 'app' | 'shared';
   envs: EnvironmentName[];
 }) {
@@ -65,31 +118,6 @@ function ProjectValues({
 
   return (
     <Stack gap="normal">
-      <PageHeader>
-        <PageHeader.TitleArea>
-          <PageHeader.LeadingVisual>
-            {kind === 'shared' ? <StackIcon /> : <RepoIcon />}
-          </PageHeader.LeadingVisual>
-          <PageHeader.Title as="h2">{project}</PageHeader.Title>
-        </PageHeader.TitleArea>
-        <PageHeader.Description>{displayName}</PageHeader.Description>
-        {!editing && (
-          <PageHeader.Actions>
-            {envs.map((env) => (
-              <Button
-                key={env}
-                leadingVisual={PencilIcon}
-                onClick={() => {
-                  setNotice(null);
-                  setEditing(env);
-                }}
-              >
-                {env} 편집
-              </Button>
-            ))}
-          </PageHeader.Actions>
-        )}
-      </PageHeader>
       {kind === 'shared' && (
         <Flash>
           여러 프로젝트가 같이 쓰는 값입니다. 다른 프로젝트에서는 {'${shared.'}
@@ -98,6 +126,22 @@ function ProjectValues({
         </Flash>
       )}
       {notice && <Flash variant="success">{notice}</Flash>}
+      {!editing && (
+        <Stack direction="horizontal" gap="condensed" justify="end" wrap="wrap">
+          {envs.map((env) => (
+            <Button
+              key={env}
+              leadingVisual={PencilIcon}
+              onClick={() => {
+                setNotice(null);
+                setEditing(env);
+              }}
+            >
+              {env} 편집
+            </Button>
+          ))}
+        </Stack>
+      )}
       {editing && editingValues ? (
         <EnvironmentEditor
           key={editing}

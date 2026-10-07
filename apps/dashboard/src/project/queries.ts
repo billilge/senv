@@ -35,6 +35,44 @@ export function fetchEnvironmentValues(api: SenvClient, project: string, env: st
   );
 }
 
+/** 버전 기록. environmentKey의 아래에 두어 게시하면 함께 새로 받는다 */
+export const versionsKey = (project: string, env: string) =>
+  ['project', project, 'env', env, 'versions'] as const;
+export const versionKey = (project: string, env: string, version: number) =>
+  ['project', project, 'env', env, 'versions', version] as const;
+
+export type VersionInfo = ApiSchemas['VersionInfo'];
+
+export function useVersions(project: string, env: string) {
+  const api = useApi();
+  return useQuery({
+    queryKey: versionsKey(project, env),
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/v1/projects/{project}/envs/{env}/versions', {
+          params: { path: { project, env } },
+        }),
+      ),
+  });
+}
+
+/** 지난 버전의 값. 버전 0은 게시 전이라 빈 값이다. 지난 버전은 바뀌지 않으므로 계속 캐시한다 */
+export function useVersionValues(project: string, env: string, version: number) {
+  const api = useApi();
+  return useQuery({
+    queryKey: versionKey(project, env, version),
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async (): Promise<EnvironmentValues> =>
+      version === 0
+        ? { project, env, version: 0, variables: {} }
+        : unwrap(
+            api.GET('/api/v1/projects/{project}/envs/{env}/versions/{version}', {
+              params: { path: { project, env, version: String(version) } },
+            }),
+          ),
+  });
+}
+
 export function useEnvironmentValues(project: string, envs: readonly EnvironmentName[]) {
   const api = useApi();
   return useQueries({

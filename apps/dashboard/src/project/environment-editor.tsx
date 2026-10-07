@@ -9,7 +9,7 @@ import {
   Textarea,
   TextInput,
 } from '@primer/react';
-import { SenvApiError, unwrap } from '@senv/api-client';
+import { unwrap } from '@senv/api-client';
 import {
   applyChangeSet,
   createChangeSet,
@@ -26,7 +26,7 @@ import table from '../ui/data-table.module.css';
 import list from '../ui/list-box.module.css';
 import panel from '../ui/panel.module.css';
 import styles from './environment-editor.module.css';
-import { describePublishIssue, readPublishIssues } from './publish-issues';
+import { PublishError } from './publish-error';
 import { type EnvironmentValues, environmentKey, fetchEnvironmentValues } from './queries';
 
 const KEY_RULE = '키 이름은 대문자·숫자·밑줄만 쓸 수 있고 숫자로 시작할 수 없습니다';
@@ -378,7 +378,9 @@ function PublishForm({
           onChange={(event) => setMessage(event.target.value)}
         />
       </FormControl>
-      {error && <PublishError error={error} onReload={onReload} />}
+      {error && (
+        <PublishError error={error} reload={{ label: '최신 값 불러오기', onClick: onReload }} />
+      )}
       <Stack direction="horizontal" gap="condensed">
         <Button variant="primary" disabled={pending} onClick={() => onPublish(message.trim())}>
           게시
@@ -386,33 +388,5 @@ function PublishForm({
         <Button onClick={onBack}>편집으로 돌아가기</Button>
       </Stack>
     </Stack>
-  );
-}
-
-function PublishError({ error, onReload }: { error: Error; onReload: () => void }) {
-  if (!(error instanceof SenvApiError)) {
-    return <Flash variant="danger">게시하지 못했습니다. 잠시 후 다시 시도하세요.</Flash>;
-  }
-  if (error.code === 'version_conflict') {
-    return (
-      <Flash variant="danger">
-        {error.message} <Button onClick={onReload}>최신 값 불러오기</Button>
-      </Flash>
-    );
-  }
-  const issues = readPublishIssues(error.details);
-  return (
-    <Flash variant="danger">
-      {error.message}
-      {issues.length > 0 && (
-        <ul>
-          {issues.map((issue) => (
-            <li key={`${issue.code}:${issue.project ?? ''}:${issue.key}:${issue.reference ?? ''}`}>
-              {describePublishIssue(issue)}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Flash>
   );
 }
