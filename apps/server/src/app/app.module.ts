@@ -22,6 +22,7 @@ import { ProjectsService } from '../projects/projects-service.js';
 import { PublishService } from '../publishing/publish-service.js';
 import { SnapshotService } from '../snapshots/snapshot-service.js';
 import { SnapshotStore } from '../storage/snapshot-store.js';
+import { RoleAssignmentsController } from '../users/role-assignments.controller.js';
 import { UsersController } from '../users/users.controller.js';
 import { UsersService } from '../users/users-service.js';
 import { type AppDependencies, CLOCK, SERVER_CONFIG } from './app-dependencies.js';
@@ -53,6 +54,7 @@ export class AppModule {
         ProjectsController,
         KeySchemasController,
         UsersController,
+        RoleAssignmentsController,
       ],
       providers: [
         { provide: APP_GUARD, useClass: AuthGuard },
@@ -139,9 +141,13 @@ export class AppModule {
         },
         {
           provide: UsersService,
-          useFactory: (prisma: PrismaClient, sessions: SessionService, tokens: ApiTokenService) =>
-            new UsersService(prisma, sessions, tokens),
-          inject: [PrismaClient, SessionService, ApiTokenService],
+          useFactory: (
+            prisma: PrismaClient,
+            sessions: SessionService,
+            tokens: ApiTokenService,
+            now: Clock,
+          ) => new UsersService(prisma, sessions, tokens, now),
+          inject: [PrismaClient, SessionService, ApiTokenService, CLOCK],
         },
       ],
     };

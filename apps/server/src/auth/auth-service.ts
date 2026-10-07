@@ -65,6 +65,10 @@ export class AuthService {
 
     // 첫 관리자 목록은 설정이 기준이라, 로그인할 때마다 활성 관리자로 맞춘다
     const isBootstrapAdmin = this.options.bootstrapAdmins.includes(gitHubUser.login.toLowerCase());
+    // 관리자가 미리 정해 둔 역할이 있으면 처음 로그인할 때 승인 대기 없이 그 역할이 된다
+    const assignment = await this.prisma.roleAssignment.findUnique({
+      where: { login: gitHubUser.login.toLowerCase() },
+    });
     const profile = {
       login: gitHubUser.login,
       name: gitHubUser.name,
@@ -78,8 +82,8 @@ export class AuthService {
         create: {
           githubId,
           ...profile,
-          role: isBootstrapAdmin ? 'admin' : 'member',
-          status: isBootstrapAdmin ? 'active' : 'pending',
+          role: isBootstrapAdmin ? 'admin' : (assignment?.role ?? 'member'),
+          status: isBootstrapAdmin || assignment ? 'active' : 'pending',
         },
         update: isBootstrapAdmin ? { ...profile, role: 'admin', status: 'active' } : profile,
         select: USER_FIELDS,
@@ -94,6 +98,9 @@ export class AuthService {
       user = await upsert();
     }
 
+    if (assignment) {
+      await this.prisma.roleAssignment.deleteMany({ where: { login: assignment.login } });
+    }
     if (user.status === 'disabled') throw new UserDisabledError(user.login);
     return user;
   }

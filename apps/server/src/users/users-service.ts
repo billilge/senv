@@ -31,13 +31,82 @@ export class LastAdminError extends Error {
   }
 }
 
-/** 관리자의 사용자 관리 (M1: 승인, 비활성화, 역할 변경) */
+export class UserAlreadyExistsError extends Error {
+  constructor(readonly login: string) {
+    super(`이미 로그인한 사용자입니다. 사용자 목록에서 역할을 바꾸세요: ${login}`);
+    this.name = 'UserAlreadyExistsError';
+  }
+}
+
+export class InvalidGitHubLoginError extends Error {
+  constructor(readonly login: string) {
+    super(`GitHub 사용자명 형식이 아닙니다: ${JSON.stringify(login)}`);
+    this.name = 'InvalidGitHubLoginError';
+  }
+}
+
+export class AssignmentNotFoundError extends Error {
+  constructor(readonly login: string) {
+    super(`미리 지정한 역할이 없습니다: ${login}`);
+    this.name = 'AssignmentNotFoundError';
+  }
+}
+
+export interface RoleAssignmentView {
+  login: string;
+  role: 'admin' | 'member';
+  createdAt: Date;
+}
+
+/** GitHub 사용자명: 영숫자와 하이픈(연속·앞뒤 불가), 39자 이하 */
+const GITHUB_LOGIN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
+
+/** 관리자의 사용자 관리 (M1: 승인, 비활성화, 역할 변경, 역할 미리 지정) */
 export class UsersService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly sessions: SessionService,
     private readonly tokens: ApiTokenService,
+    private readonly now: () => Date = () => new Date(),
   ) {}
+
+  async listAssignments(actor: UserView): Promise<RoleAssignmentView[]> {
+    requireAdmin(actor);
+    return this.prisma.roleAssignment.findMany({
+      orderBy: { login: 'asc' },
+      select: { login: true, role: true, createdAt: true },
+    });
+  }
+
+  /** 아직 로그인하지 않은 GitHub 사용자의 역할을 정해 둔다. 처음 로그인할 때 바로 활성화된다 */
+  async assignRole(
+    login: string,
+    role: 'admin' | 'member',
+    actor: UserView,
+  ): Promise<RoleAssignmentView> {
+    requireAdmin(actor);
+    if (!GITHUB_LOGIN.test(login)) throw new InvalidGitHubLoginError(login);
+    const normalized = login.toLowerCase();
+    const existing = await this.prisma.user.findMany({ select: { login: true } });
+    if (existing.some((user) => user.login.toLowerCase() === normalized)) {
+      throw new UserAlreadyExistsError(login);
+    }
+    const fields = { role, createdBy: actor.id, createdAt: this.now() };
+    return this.prisma.roleAssignment.upsert({
+      where: { login: normalized },
+      create: { login: normalized, ...fields },
+      update: fields,
+      select: { login: true, role: true, createdAt: true },
+    });
+  }
+
+  async removeAssignment(login: string, actor: UserView): Promise<void> {
+    requireAdmin(actor);
+    const { count } = await this.prisma.roleAssignment.deleteMany({
+      where: { login: login.toLowerCase() },
+    });
+    if (count === 0) throw new AssignmentNotFoundError(login);
+  }
 
   /** 승인 대기 사용자를 먼저, 그다음 사용자명 순으로 돌려준다 */
   async list(actor: UserView): Promise<UserView[]> {

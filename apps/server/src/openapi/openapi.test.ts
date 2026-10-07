@@ -47,6 +47,9 @@ describe('OpenAPI 문서', () => {
         'POST /api/v1/users/{id}/activate',
         'POST /api/v1/users/{id}/disable',
         'PUT /api/v1/users/{id}/role',
+        'GET /api/v1/role-assignments',
+        'PUT /api/v1/role-assignments/{login}',
+        'DELETE /api/v1/role-assignments/{login}',
       ].sort(),
     );
   });

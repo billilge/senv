@@ -117,4 +117,17 @@ describe('AuthService.loginWithGitHub', () => {
       'pending',
     );
   });
+
+  it('역할을 미리 지정한 사용자는 처음 로그인하면 바로 그 역할로 활성화되고, 지정은 사라진다', async () => {
+    await prisma.roleAssignment.create({
+      data: { login: 'bob', role: 'admin', createdBy: 'u-admin', createdAt: NOW },
+    });
+
+    expect(await auth.loginWithGitHub('code-bob', REDIRECT)).toMatchObject({
+      login: 'bob',
+      role: 'admin',
+      status: 'active',
+    });
+    expect(await prisma.roleAssignment.count()).toBe(0);
+  });
 });

@@ -6,13 +6,17 @@ import { createTestPrisma, resetDatabase } from '../testing/database.js';
 import { createTestUser } from '../testing/users.js';
 import {
   AdminRequiredError,
+  AssignmentNotFoundError,
   CannotDisableSelfError,
+  InvalidGitHubLoginError,
   LastAdminError,
+  UserAlreadyExistsError,
   UserNotFoundError,
   UsersService,
 } from './users-service.js';
 
 const prisma = createTestPrisma();
+const NOW = new Date('2026-10-08T09:00:00.000Z');
 
 let sessions: SessionService;
 let tokens: ApiTokenService;
@@ -31,7 +35,7 @@ beforeEach(async () => {
   await resetDatabase(prisma);
   sessions = new SessionService(prisma);
   tokens = new ApiTokenService(prisma);
-  users = new UsersService(prisma, sessions, tokens);
+  users = new UsersService(prisma, sessions, tokens, () => NOW);
   admin = await makeUser({ login: 'admin', role: 'admin', status: 'active' });
 });
 afterAll(() => prisma.$disconnect());
@@ -104,5 +108,39 @@ describe('UsersService', () => {
 
   it('없는 사용자면 UserNotFoundError다', async () => {
     await expect(users.activate('no-such-user', admin)).rejects.toThrow(UserNotFoundError);
+  });
+});
+
+describe('역할 미리 지정', () => {
+  it('관리자는 GitHub 사용자명으로 역할을 미리 정하고 목록을 본다 (사용자명은 소문자로)', async () => {
+    await users.assignRole('Carol', 'admin', admin);
+    await users.assignRole('dave', 'member', admin);
+    await users.assignRole('carol', 'member', admin);
+
+    expect(await users.listAssignments(admin)).toEqual([
+      { login: 'carol', role: 'member', createdAt: NOW },
+      { login: 'dave', role: 'member', createdAt: NOW },
+    ]);
+  });
+
+  it('이미 로그인한 사용자면 UserAlreadyExistsError, 사용자명 형식이 틀리면 InvalidGitHubLoginError다', async () => {
+    await makeUser({ login: 'erin' });
+    await expect(users.assignRole('ERIN', 'admin', admin)).rejects.toThrow(UserAlreadyExistsError);
+    await expect(users.assignRole('-bad-', 'member', admin)).rejects.toThrow(
+      InvalidGitHubLoginError,
+    );
+  });
+
+  it('지정을 지운다. 없으면 AssignmentNotFoundError다', async () => {
+    await users.assignRole('carol', 'member', admin);
+    await users.removeAssignment('Carol', admin);
+    expect(await users.listAssignments(admin)).toEqual([]);
+    await expect(users.removeAssignment('carol', admin)).rejects.toThrow(AssignmentNotFoundError);
+  });
+
+  it('관리자만 한다', async () => {
+    const member = await makeUser({ login: 'mallory' });
+    await expect(users.listAssignments(member)).rejects.toThrow(AdminRequiredError);
+    await expect(users.assignRole('carol', 'admin', member)).rejects.toThrow(AdminRequiredError);
   });
 });

@@ -91,4 +91,43 @@ describe('사용자 관리 API', () => {
     expect(missing.status).toBe(404);
     expect(missing.body.code).toBe('user_not_found');
   });
+
+  it('관리자는 GitHub 사용자명으로 역할을 미리 지정하고, 목록을 보고, 지운다', async () => {
+    const put = await t
+      .http()
+      .put('/api/v1/role-assignments/Carol')
+      .set(admin.auth)
+      .send({ role: 'admin' });
+    expect(put.status).toBe(200);
+    expect(put.body).toEqual({ login: 'carol', role: 'admin', createdAt: expect.any(String) });
+
+    const list = await t.http().get('/api/v1/role-assignments').set(admin.auth);
+    expect(list.body).toEqual({ assignments: [put.body] });
+
+    expect((await t.http().delete('/api/v1/role-assignments/carol').set(admin.auth)).status).toBe(
+      204,
+    );
+    const missing = await t.http().delete('/api/v1/role-assignments/carol').set(admin.auth);
+    expect(missing.body).toMatchObject({ code: 'assignment_not_found' });
+  });
+
+  it('이미 로그인한 사용자면 409 user_exists, 형식이 틀리면 422, 멤버는 403이다', async () => {
+    const member = await signIn(t, { login: 'zed' });
+    const exists = await t
+      .http()
+      .put('/api/v1/role-assignments/zed')
+      .set(admin.auth)
+      .send({ role: 'admin' });
+    expect(exists.status).toBe(409);
+    expect(exists.body).toMatchObject({ code: 'user_exists' });
+
+    const invalid = await t
+      .http()
+      .put('/api/v1/role-assignments/-bad-')
+      .set(admin.auth)
+      .send({ role: 'member' });
+    expect(invalid.status).toBe(422);
+
+    expect((await t.http().get('/api/v1/role-assignments').set(member.auth)).status).toBe(403);
+  });
 });

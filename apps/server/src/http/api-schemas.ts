@@ -141,6 +141,18 @@ export const publicPrefixesSchema = z
   .object({ publicPrefixes: z.array(z.string()) })
   .meta({ id: 'PublicPrefixes' });
 
+export const roleAssignmentSchema = z
+  .object({
+    login: z.string().describe('GitHub 사용자명 (소문자)'),
+    role: z.enum(['admin', 'member']),
+    createdAt: isoDateTime,
+  })
+  .meta({ id: 'RoleAssignment' });
+
+export const roleAssignmentListSchema = z
+  .object({ assignments: z.array(roleAssignmentSchema) })
+  .meta({ id: 'RoleAssignmentList' });
+
 export const tokenPairSchema = z
   .object({
     accessToken: z.string(),

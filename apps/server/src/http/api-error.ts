@@ -30,8 +30,11 @@ import {
 } from '../publishing/publish-service.js';
 import {
   AdminRequiredError,
+  AssignmentNotFoundError,
   CannotDisableSelfError,
+  InvalidGitHubLoginError,
   LastAdminError,
+  UserAlreadyExistsError,
   UserNotFoundError,
 } from '../users/users-service.js';
 
@@ -136,6 +139,9 @@ const RULES: Rule[] = [
   { type: UserNotFoundError, status: 404, code: 'user_not_found' },
   { type: CannotDisableSelfError, status: 422, code: 'cannot_disable_self' },
   { type: LastAdminError, status: 422, code: 'last_admin' },
+  { type: UserAlreadyExistsError, status: 409, code: 'user_exists' },
+  { type: InvalidGitHubLoginError, status: 422, code: 'invalid_github_login' },
+  { type: AssignmentNotFoundError, status: 404, code: 'assignment_not_found' },
 ];
 
 /** Nest 기본 예외의 상태 코드를 우리 code로 바꾼다 */

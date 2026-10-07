@@ -195,3 +195,15 @@ model KeySchema {
   @@unique([projectId, key])
   @@map("key_schemas")
 }
+
+/// 아직 로그인하지 않은 GitHub 사용자에게 미리 정해 둔 역할 (PRD 7.1).
+/// 그 사용자가 처음 로그인하면 승인 대기 없이 이 역할로 활성화되고, 이 행은 지운다
+model RoleAssignment {
+  /// GitHub 사용자명 (소문자)
+  login     String   @id @db.VarChar(39)
+  role      UserRole
+  createdBy String   @map("created_by") @db.VarChar(64)
+  createdAt DateTime @map("created_at") @db.DateTime(3)
+
+  @@map("role_assignments")
+}
