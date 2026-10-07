@@ -1,10 +1,12 @@
-import { KeyIcon } from '@primer/octicons-react';
-import { ActionList, ActionMenu, Avatar, Spinner, Text } from '@primer/react';
+import { KeyIcon, PeopleIcon, RepoIcon } from '@primer/octicons-react';
+import { ActionList, ActionMenu, Avatar, Spinner, Text, UnderlineNav } from '@primer/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { useApi } from '../api-context';
 import { type User, useMe } from '../auth/use-me';
 import { PendingPage } from '../pages/pending-page';
+import { useProjects } from '../project/queries';
+import { useUsers } from '../users/queries';
 import classes from './app-layout.module.css';
 
 /** 로그인이 필요한 영역. 로그인하지 않았으면 /login으로, 승인 대기면 안내만 보여준다 */
@@ -29,12 +31,16 @@ export function AppLayout() {
   );
 }
 
-/** GitHub처럼 어두운 상단 헤더: 앱 이름, 메뉴, 사용자 메뉴(로그아웃) */
+/** GitHub 저장소 화면처럼: 위 줄은 앱 이름과 사용자 메뉴, 아래 줄은 아이콘·개수가 붙은 탭 */
 function TopBar({ me, showNav }: { me: User; showNav: boolean }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const isAdmin = me.role === 'admin';
+  const projects = useProjects();
+  const users = useUsers({ enabled: showNav && isAdmin });
+  const pendingCount = users.data?.users.filter((user) => user.status === 'pending').length ?? 0;
 
   const logout = async () => {
     await api.POST('/api/v1/auth/logout');
@@ -44,52 +50,58 @@ function TopBar({ me, showNav }: { me: User; showNav: boolean }) {
 
   return (
     <header className={classes.header}>
-      <Link to="/" className={classes.brand}>
-        <KeyIcon size={20} />
-        Stream Env Control
-      </Link>
-      <nav className={classes.nav} aria-label="주 메뉴">
-        {showNav && (
-          <Link
+      <div className={classes.top}>
+        <Link to="/" className={classes.brand}>
+          <KeyIcon size={24} />
+          Stream Env Control
+        </Link>
+        <ActionMenu>
+          <ActionMenu.Button
+            variant="invisible"
+            leadingVisual={
+              me.avatarUrl ? () => <Avatar src={me.avatarUrl ?? ''} alt="" /> : undefined
+            }
+          >
+            {me.login}
+          </ActionMenu.Button>
+          <ActionMenu.Overlay align="end">
+            <ActionList>
+              <ActionList.Group>
+                <ActionList.GroupHeading>
+                  <Text>{me.name ?? me.login}</Text>
+                </ActionList.GroupHeading>
+                <ActionList.Item variant="danger" onSelect={logout}>
+                  로그아웃
+                </ActionList.Item>
+              </ActionList.Group>
+            </ActionList>
+          </ActionMenu.Overlay>
+        </ActionMenu>
+      </div>
+      {showNav && (
+        <UnderlineNav aria-label="주 메뉴" className={classes.tabs}>
+          <UnderlineNav.Item
+            as={Link}
             to="/"
-            className={classes.navLink}
-            data-selected={pathname === '/' || pathname.startsWith('/projects')}
+            icon={RepoIcon}
+            counter={projects.data?.projects.length}
+            aria-current={pathname === '/' || pathname.startsWith('/projects') ? 'page' : undefined}
           >
             프로젝트
-          </Link>
-        )}
-        {showNav && me.role === 'admin' && (
-          <Link
-            to="/admin/users"
-            className={classes.navLink}
-            data-selected={pathname.startsWith('/admin')}
-          >
-            사용자 관리
-          </Link>
-        )}
-      </nav>
-      <ActionMenu>
-        <ActionMenu.Button
-          variant="invisible"
-          leadingVisual={
-            me.avatarUrl ? () => <Avatar src={me.avatarUrl ?? ''} alt="" /> : undefined
-          }
-        >
-          {me.login}
-        </ActionMenu.Button>
-        <ActionMenu.Overlay align="end">
-          <ActionList>
-            <ActionList.Group>
-              <ActionList.GroupHeading>
-                <Text>{me.name ?? me.login}</Text>
-              </ActionList.GroupHeading>
-              <ActionList.Item variant="danger" onSelect={logout}>
-                로그아웃
-              </ActionList.Item>
-            </ActionList.Group>
-          </ActionList>
-        </ActionMenu.Overlay>
-      </ActionMenu>
+          </UnderlineNav.Item>
+          {isAdmin && (
+            <UnderlineNav.Item
+              as={Link}
+              to="/admin/users"
+              icon={PeopleIcon}
+              counter={pendingCount > 0 ? pendingCount : undefined}
+              aria-current={pathname.startsWith('/admin') ? 'page' : undefined}
+            >
+              사용자 관리
+            </UnderlineNav.Item>
+          )}
+        </UnderlineNav>
+      )}
     </header>
   );
 }

@@ -12,25 +12,20 @@ import {
   TextInput,
 } from '@primer/react';
 import { type ApiSchemas, SenvApiError, unwrap } from '@senv/api-client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { type FormEvent, useState } from 'react';
 import { useApi } from '../api-context';
 import { useMe } from '../auth/use-me';
+import { PROJECTS_QUERY_KEY, useProjects } from '../project/queries';
 import list from '../ui/list-box.module.css';
 
 type Project = ApiSchemas['Project'];
 
-const PROJECTS_QUERY_KEY = ['projects'] as const;
-
 export function ProjectsPage() {
-  const api = useApi();
   const me = useMe();
   const [creating, setCreating] = useState(false);
-  const projects = useQuery({
-    queryKey: PROJECTS_QUERY_KEY,
-    queryFn: () => unwrap(api.GET('/api/v1/projects')),
-  });
+  const projects = useProjects();
 
   return (
     <Stack gap="normal">

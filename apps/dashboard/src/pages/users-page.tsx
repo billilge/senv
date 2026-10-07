@@ -1,10 +1,9 @@
 import { Avatar, Button, Flash, Heading, Label, Spinner, Stack, Text } from '@primer/react';
 import { SenvApiError, unwrap } from '@senv/api-client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../api-context';
 import { ME_QUERY_KEY, type User, useMe } from '../auth/use-me';
-
-const USERS_QUERY_KEY = ['users'] as const;
+import { USERS_QUERY_KEY, useUsers } from '../users/queries';
 
 const STATUS = {
   pending: { text: '승인 대기', variant: 'attention' },
@@ -27,10 +26,7 @@ export function UsersPage() {
   const api = useApi();
   const queryClient = useQueryClient();
   const me = useMe();
-  const users = useQuery({
-    queryKey: USERS_QUERY_KEY,
-    queryFn: () => unwrap(api.GET('/api/v1/users')),
-  });
+  const users = useUsers();
   const act = useMutation({
     mutationFn: (action: UserAction) => {
       const params = { path: { id: action.user.id } };

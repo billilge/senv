@@ -36,7 +36,10 @@ describe('로그인 상태에 따른 화면', () => {
       'href',
       '/',
     );
-    expect(within(header).getByRole('link', { name: '프로젝트' })).toHaveAttribute('href', '/');
+    const tabs = within(header).getByRole('navigation', { name: '주 메뉴' });
+    const projectsTab = within(tabs).getByRole('link', { name: /^프로젝트/ });
+    expect(projectsTab).toHaveAttribute('href', '/');
+    expect(projectsTab).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('main')).toBeInTheDocument();
 
     await actor.click(within(header).getByRole('button', { name: /alice/ }));
@@ -69,13 +72,37 @@ describe('로그인 상태에 따른 화면', () => {
       .reply('GET', '/api/v1/projects', projectsReply);
     const { unmount } = renderApp('/', memberApi);
     await screen.findByText('alice');
-    expect(screen.queryByRole('link', { name: '사용자 관리' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^사용자 관리/ })).not.toBeInTheDocument();
     unmount();
 
     const adminApi = new FakeApi()
       .reply('GET', '/api/v1/me', { status: 200, body: user({ login: 'boss', role: 'admin' }) })
       .reply('GET', '/api/v1/projects', projectsReply);
     renderApp('/', adminApi);
-    expect(await screen.findByRole('link', { name: '사용자 관리' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^사용자 관리/ })).toBeInTheDocument();
+  });
+
+  it('프로젝트 탭에는 프로젝트 수를, 관리자의 사용자 관리 탭에는 승인 대기 인원을 붙인다', async () => {
+    const api = new FakeApi()
+      .reply('GET', '/api/v1/me', { status: 200, body: user({ role: 'admin' }) })
+      .reply('GET', '/api/v1/projects', {
+        status: 200,
+        body: {
+          projects: ['server', 'web'].map((name) => ({
+            name,
+            displayName: name,
+            kind: 'app',
+            environments: ['local', 'development', 'production'],
+          })),
+        },
+      })
+      .reply('GET', '/api/v1/users', {
+        status: 200,
+        body: { users: [user({ id: 'u2', login: 'bob', status: 'pending' }), user()] },
+      });
+    renderApp('/', api);
+
+    expect(await screen.findByRole('link', { name: /^프로젝트.*2/ })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^사용자 관리.*1/ })).toBeInTheDocument();
   });
 });
