@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { FakeApi, user } from '../testing/fake-api';
 import { renderApp } from '../testing/render-app';
@@ -120,5 +120,52 @@ describe('사용자 관리', () => {
       });
     renderApp('/admin/users', api);
     expect(await screen.findByText('관리자만 할 수 있습니다')).toBeInTheDocument();
+  });
+
+  it('아직 로그인하지 않은 GitHub 사용자명에 역할을 미리 지정하고 지울 수 있다', async () => {
+    const assignment = { login: 'dave', role: 'admin', createdAt: '2026-10-08T05:00:00.000Z' };
+    const api = asAdmin()
+      .reply('GET', '/api/v1/users', { status: 200, body: { users: [admin] } })
+      .reply(
+        'GET',
+        '/api/v1/role-assignments',
+        { status: 200, body: { assignments: [] } },
+        { status: 200, body: { assignments: [assignment] } },
+        { status: 200, body: { assignments: [] } },
+      )
+      .reply('PUT', '/api/v1/role-assignments/dave', { status: 200, body: assignment })
+      .reply('DELETE', '/api/v1/role-assignments/dave', { status: 204 });
+    const { user: actor } = renderApp('/admin/users', api);
+
+    const section = within(await screen.findByRole('region', { name: '역할 미리 지정' }));
+    await actor.type(section.getByRole('textbox', { name: 'GitHub 사용자명' }), 'dave');
+    await actor.selectOptions(section.getByRole('combobox', { name: '역할' }), 'admin');
+    await actor.click(section.getByRole('button', { name: '지정' }));
+
+    expect(await section.findByText('dave')).toBeInTheDocument();
+    expect(api.requests.find((r) => r.method === 'PUT')?.body).toEqual({ role: 'admin' });
+
+    await actor.click(section.getByRole('button', { name: 'dave 지정 취소' }));
+    await waitFor(() => expect(section.queryByText('dave')).not.toBeInTheDocument());
+  });
+
+  it('이미 로그인한 사용자를 지정하면 서버 안내를 보여준다', async () => {
+    const api = asAdmin()
+      .reply('GET', '/api/v1/users', { status: 200, body: { users: [admin] } })
+      .reply('GET', '/api/v1/role-assignments', { status: 200, body: { assignments: [] } })
+      .reply('PUT', '/api/v1/role-assignments/alice', {
+        status: 409,
+        body: {
+          code: 'user_exists',
+          message: '이미 로그인한 사용자입니다. 사용자 목록에서 역할을 바꾸세요: alice',
+        },
+      });
+    const { user: actor } = renderApp('/admin/users', api);
+
+    const section = within(await screen.findByRole('region', { name: '역할 미리 지정' }));
+    await actor.type(section.getByRole('textbox', { name: 'GitHub 사용자명' }), 'alice');
+    await actor.click(section.getByRole('button', { name: '지정' }));
+
+    expect(await section.findByText(/이미 로그인한 사용자입니다/)).toBeInTheDocument();
   });
 });

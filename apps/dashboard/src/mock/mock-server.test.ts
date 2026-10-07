@@ -252,4 +252,20 @@ describe('목업 서버', () => {
     // server production에는 REDIS_URL이 없다 (필수지만 production은 예외)
     expect(server.summary).toMatchObject({ missing: 1, missingRequired: 0 });
   });
+
+  it('관리자는 역할을 미리 지정하고 지운다. 이미 있는 사용자는 409다', async () => {
+    const { call } = setup();
+    expect(
+      (await call('PUT', '/api/v1/role-assignments/Erin', { role: 'admin' })).body,
+    ).toMatchObject({
+      login: 'erin',
+      role: 'admin',
+    });
+    expect((await call('GET', '/api/v1/role-assignments')).body.assignments).toHaveLength(1);
+    expect((await call('PUT', '/api/v1/role-assignments/bob', { role: 'admin' })).status).toBe(409);
+    expect((await call('DELETE', '/api/v1/role-assignments/erin')).status).toBe(204);
+    expect(
+      (await setup({ persona: 'member' }).call('GET', '/api/v1/role-assignments')).status,
+    ).toBe(403);
+  });
 });

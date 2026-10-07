@@ -6,6 +6,7 @@ import { useApi } from '../api-context';
 import { ME_QUERY_KEY, type User, useMe } from '../auth/use-me';
 import table from '../ui/data-table.module.css';
 import { USERS_QUERY_KEY, useUsers } from '../users/queries';
+import { RoleAssignments } from '../users/role-assignments';
 
 const STATUS = {
   pending: { text: '승인 대기', variant: 'attention' },
@@ -127,6 +128,7 @@ export function UsersPage() {
           </tbody>
         </table>
       </div>
+      <RoleAssignments />
     </Stack>
   );
 }

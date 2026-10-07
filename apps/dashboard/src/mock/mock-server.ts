@@ -59,6 +59,8 @@ export interface MockState {
   values: Record<string, Record<EnvironmentName, Snapshot>>;
   /** 키 스키마. 예전에 저장한 목업 데이터에는 없을 수 있다 */
   schemas?: Record<string, ProjectSchema>;
+  /** 역할 미리 지정 (결정 45) */
+  assignments?: { login: string; role: 'admin' | 'member'; createdAt: string }[];
 }
 
 const schemaKey = (key: string, fields: Partial<KeySchema> = {}): KeySchema => ({
@@ -363,6 +365,9 @@ export class MockServer {
       return this.schema(me, method, name, part, key, body);
     }
 
+    if (path.startsWith('/api/v1/role-assignments')) {
+      return this.assignments(me, method, path, body);
+    }
     if (path.startsWith('/api/v1/users')) return this.users(me, method, path, body);
 
     return problem(404, 'not_found', `목업에 없는 경로: ${method} ${path}`);
@@ -434,6 +439,57 @@ export class MockServer {
       }
     }
     return { environments, missing, missingRequired };
+  }
+
+  private assignments(
+    me: User,
+    method: string,
+    path: string,
+    body: Record<string, unknown>,
+  ): Reply {
+    if (me.role !== 'admin') return problem(403, 'admin_required', '관리자만 할 수 있습니다');
+    const current = this.state.assignments ?? [];
+    if (path === '/api/v1/role-assignments' && method === 'GET') {
+      return new Reply(200, { assignments: current });
+    }
+    const login = decodeURIComponent(path.split('/').at(-1) ?? '').toLowerCase();
+    if (method === 'PUT') {
+      if (!/^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/.test(login)) {
+        return problem(
+          422,
+          'invalid_github_login',
+          `GitHub 사용자명 형식이 아닙니다: ${JSON.stringify(login)}`,
+        );
+      }
+      if (this.state.users.some((user) => user.login.toLowerCase() === login)) {
+        return problem(
+          409,
+          'user_exists',
+          `이미 로그인한 사용자입니다. 사용자 목록에서 역할을 바꾸세요: ${login}`,
+        );
+      }
+      const entry = {
+        login,
+        role: body.role === 'admin' ? ('admin' as const) : ('member' as const),
+        createdAt: new Date().toISOString(),
+      };
+      this.update((state) => {
+        state.assignments = [...current.filter((other) => other.login !== login), entry].sort(
+          (a, b) => a.login.localeCompare(b.login),
+        );
+      });
+      return new Reply(200, entry);
+    }
+    if (method === 'DELETE') {
+      if (!current.some((other) => other.login === login)) {
+        return problem(404, 'assignment_not_found', `미리 지정한 역할이 없습니다: ${login}`);
+      }
+      this.update((state) => {
+        state.assignments = current.filter((other) => other.login !== login);
+      });
+      return new Reply(204);
+    }
+    return problem(404, 'not_found', `목업에 없는 경로: ${method} ${path}`);
   }
 
   private schemaOf(name: string): ProjectSchema {
