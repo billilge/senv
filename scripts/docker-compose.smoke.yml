@@ -1,0 +1,21 @@
+# scripts/docker-smoke.sh 전용: 검사용 MySQL을 붙이고 api를 로컬 포트로 연다
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: smoke-root
+      MYSQL_DATABASE: stream_env
+      MYSQL_USER: stream_env
+      MYSQL_PASSWORD: smoke-pw
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-psmoke-root"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+
+  api:
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${SMOKE_PORT:-38080}:3000"
