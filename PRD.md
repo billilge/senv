@@ -4,7 +4,7 @@
 | --- | --- |
 | 문서 상태 | v1.0 (결정사항 확정) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -961,6 +961,13 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 20 | M1 권한 | 관리자·멤버 두 단계. 프로젝트 × 환경 세부 권한은 M2 | 9.3 |
 | 21 | 토큰 형식 | 불투명 랜덤 + 종류 접두사 (`senv_at_`, `senv_rt_`, `senv_st_`) | 9.2 |
 | 22 | 대시보드 세션 | 7일, 쓸 때마다 연장 | 9.2 |
+| 23 | API 경로 | `/api/v1/...`. GitHub 로그인 리다이렉트(`/auth/github`)와 헬스체크(`/healthz`)만 밖에 둔다 | 11장 |
+| 24 | CSRF | 세션 쿠키 SameSite=Lax·HttpOnly, 쿠키로 인증한 쓰기 요청은 Origin이 APP_URL과 같아야 함 | 9.1 |
+| 25 | API 오류 형식 | `{ code, message, details }` (code로 분기, message는 사람에게 표시) | 11장 |
+| 26 | CLI 서버 주소 | `https://senv.stream.billilge.site` 기본 내장, `SENV_API_URL`로 변경 | 6.3 |
+| 27 | 클라이언트 노출 검사 | M2 키 스키마(secret/public)와 함께 켠다. M1 CLI는 검사하지 않음 | 6.3 |
+| 28 | `$`가 든 값 | `.env`에 그대로 쓰고 경고하며 `senv run`을 권한다 (Vite·Expo가 `$VAR`를 치환하기 때문) | 6.3 |
+| 29 | 키체인이 없을 때 | `~/.config/senv/credentials.json`(권한 600)으로 대체하고 경고 | 9.2 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
