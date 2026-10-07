@@ -4,7 +4,7 @@
 | --- | --- |
 | 문서 상태 | v1.0 (결정사항 확정) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -16,7 +16,7 @@ Stream Env Control은 Stream의 서버·앱·웹 환경변수를 Cloudflare R2�
 ### 1.1 해결하려는 문제
 
 - 환경변수가 Slack DM, Notion, 각자 노트북의 `.env` 파일에 흩어져 있어 어느 값이 최신인지 알기 어렵다.
-- 서버·앱·웹 × development·staging·production 조합마다 값이 달라서, 새 키를 추가하면 일부 환경에서 빠지기 쉽다.
+- 서버·앱·웹 × local·development·production 조합마다 값이 달라서, 새 키를 추가하면 일부 환경에서 빠지기 쉽다.
 - 새로 합류한 개발자는 동료에게 값을 하나씩 물어봐야 로컬 환경을 맞출 수 있다.
 - Coolify에 값을 손으로 붙여넣다 보니 오타나 누락이 곧 배포 장애로 이어진다.
 - 누가 언제 production 값을 보거나 바꿨는지 기록이 없다.
@@ -34,7 +34,7 @@ Stream Env Control은 Stream의 서버·앱·웹 환경변수를 Cloudflare R2�
 | 용어 | 뜻 |
 | --- | --- |
 | 프로젝트 | 환경변수를 쓰는 배포 단위. 예: `server`, `app`, `web` |
-| 환경 | `development`, `staging`, `production` 등 값이 달라지는 단위 |
+| 환경 | `local`(개발자 PC), `development`(개발 서버), `production`(운영) 세 개로 고정된, 값이 달라지는 단위 |
 | 게시(publish) | 편집한 내용을 확정해 새 버전 스냅샷을 만드는 동작 |
 | 스냅샷 | 특정 프로젝트·환경의 전체 변수를 담은 불변 파일. R2에 암호화해 저장 |
 | 키 스키마 | 프로젝트에 있어야 하는 키 목록과 타입·필수 여부·설명 |
@@ -81,7 +81,7 @@ Stream Env Control은 Stream의 서버·앱·웹 환경변수를 Cloudflare R2�
 
 | 사용자 | 하는 일 | 기본 권한 |
 | --- | --- | --- |
-| 개발자 (서버·앱·웹) | 로컬 개발용 값 받기, 새 키 추가, development 값 수정 | development 쓰기, staging 읽기 |
+| 개발자 (서버·앱·웹) | 로컬 개발용 값 받기, 새 키 추가, local 값 수정 | local 쓰기, development 읽기 |
 | 관리자 (리드, 배포 담당) | production 값 관리, 권한 부여, Coolify 연결 | 전체 |
 | CI·자동화 | 빌드·테스트 시 값 주입 | 서비스 토큰에 지정한 프로젝트·환경 읽기 |
 
@@ -93,7 +93,7 @@ Stream Env Control은 Stream의 서버·앱·웹 환경변수를 Cloudflare R2�
     - `.env.local`이 생성되고, 이 파일이 `.gitignore`에 들어 있는지 자동으로 확인한다.
 2. **새 환경변수 추가**
     - 서버 개발자가 키 스키마에 `REDIS_URL`을 추가하고 development 값을 넣어 게시한다.
-    - 대시보드 매트릭스에서 staging·production 칸이 "누락"으로 표시되고, 관리자에게 알림이 간다.
+    - 대시보드 매트릭스에서 development·production 칸이 "누락"으로 표시되고, 관리자에게 알림이 간다.
     - 다른 개발자가 `senv run`을 실행하면 최신 버전이 바로 적용된다.
 3. **production 값 변경과 배포**
     - 관리자가 production `PAYMENT_SECRET_KEY`를 수정하고, 변경 전후 diff를 확인한 뒤 게시한다.
@@ -425,8 +425,10 @@ Coolify 서버나 MySQL이 사라져도 값은 R2에 남는다.
 
 ### 5.1 계층 구조
 
-- 조직(Stream) → 프로젝트(`server`, `app`, `web`) → 환경(`development`, `staging`, `production`, 프로젝트별 추가 가능) → 변수
-- **공유 그룹**: 여러 프로젝트가 같이 쓰는 값(예: `API_BASE_URL`, Sentry DSN)은 `shared` 그룹에 두고, 프로젝트에서는 `${shared.API_BASE_URL}`처럼 참조한다. 참조는 API가 응답할 때 해석한다.
+- 조직(Stream) → 프로젝트(`server`, `app`, `web`) → 환경(`local`, `development`, `production`) → 변수
+- **환경은 세 개로 고정**한다. 프로젝트를 만들면 세 환경이 함께 만들어지고, 환경을 추가하거나 지우는 기능은 없다.
+- **이름 규칙**: 프로젝트 이름은 소문자·숫자·하이픈, 소문자나 숫자로 시작, 32자 이하 (예: `server`, `web-admin`). R2 저장 경로와 CLI 인자(`--project`, `--env`)에 그대로 쓴다. 화면 표시용 이름은 따로 둔다.
+- **공유 그룹**: `kind='shared'`인 특수 프로젝트 하나로 둔다. 환경·버전·게시·권한 로직을 일반 프로젝트와 함께 쓴다. 여러 프로젝트가 같이 쓰는 값(예: `API_BASE_URL`, Sentry DSN)은 `shared` 그룹에 두고, 프로젝트에서는 `${shared.API_BASE_URL}`처럼 참조한다. 참조는 API가 응답할 때 해석한다.
 
 ### 5.2 변수 속성
 
@@ -509,7 +511,7 @@ stream-env-backups/                           # R2 버킷 (Coolify 예약 백업
 ```json
 {
   "project": "web",
-  "defaultEnv": "development",
+  "defaultEnv": "local",
   "output": ".env.local",
   "format": "dotenv"
 }
@@ -571,7 +573,7 @@ stream-env-backups/                           # R2 버킷 (Coolify 예약 백업
 
 - **값 표시**: `secret` 값은 기본으로 가린다. "보기"를 누르면 30초 동안 보이고 감사 로그에 남는다. 읽기 권한이 없는 환경은 키 이름과 설정 여부만 보인다.
 - **게시 전 검증**: 필수 키 누락, 타입 오류, 끊긴 공유 참조가 있으면 게시 버튼을 막고 이유를 보여준다.
-- **환경 간 복사**: 선택한 키를 다른 환경으로 복사한다(예: staging → production). 복사 전 값 diff를 보여준다.
+- **환경 간 복사**: 선택한 키를 다른 환경으로 복사한다(예: development → production). 복사 전 값 diff를 보여준다.
 - **일괄 입력**: 기존 `.env` 파일 내용을 붙여넣으면 파싱해서 추가·변경·삭제 후보로 나눠 보여준다. 이관 작업에 쓴다.
 - **동시 편집**: 게시 시점에 기준 버전이 바뀌었으면 충돌을 알리고 최신 버전 기준으로 diff를 다시 보여준다.
 - **알림 (M4)**: 게시, 누락 키, 동기화 실패, 드리프트를 Slack 채널로 보낸다.
@@ -828,7 +830,7 @@ AWS는 지금 구현하지 않는다. 다만 인터페이스가 Coolify 밖에�
 
 역할 템플릿 (승인하거나 미리 지정할 때 고른다):
 
-| 템플릿 | development | staging | production |
+| 템플릿 | local | development | production |
 | --- | --- | --- | --- |
 | 관리자 | admin | admin | admin |
 | 시니어 개발자 | write | write | read |
@@ -897,7 +899,7 @@ CLI·CI는 `Authorization: Bearer <token>` 헤더를, 대시보드는 세션 쿠
 | 단계 | 범위 | 완료 기준 |
 | --- | --- | --- |
 | **M1 MVP** | 모노레포 골격, Coolify에 `api`·`worker` 배포, 기존 MySQL에 `stream_env` 연결, R2 연결, GitHub 로그인(org 멤버십 확인), 프로젝트·환경·변수 편집(매트릭스, 게시), 버전 스냅샷, 봉투 암호화, CLI `login`·`init`·`pull`·`run`·`list`·`get` | 팀 전원이 development 값을 `senv`로 받아 쓴다 |
-| **M2 운영 안전장치** | 프로젝트 × 환경 권한, GitHub org 멤버십 매일 재확인, 감사 로그, 버전 비교·롤백, 키 스키마·검증, 서비스 토큰, CLI `status`·`diff`·`set`·`push`·`export`·`doctor`, 개인 덮어쓰기 파일 | staging·production 값 이관 완료, Slack·Notion 사본 삭제 |
+| **M2 운영 안전장치** | 프로젝트 × 환경 권한, GitHub org 멤버십 매일 재확인, 감사 로그, 버전 비교·롤백, 키 스키마·검증, 서비스 토큰, CLI `status`·`diff`·`set`·`push`·`export`·`doctor`, 개인 덮어쓰기 파일 | development·production 값 이관 완료, Slack·Notion 사본 삭제 |
 | **M3 배포 대상 연동** | 제공자 인터페이스(`core`)와 `target-testkit`, Coolify 제공자, 연결·매핑, 초기 가져오기, diff 미리보기, 게시 시 자동 동기화, 재시작·재배포, 드리프트 감지 | 모든 Coolify 앱이 대시보드 값과 일치하고 수동 붙여넣기가 없다. 메모리 제공자로 전체 동기화 흐름 테스트가 통과한다 |
 | **M4 확장** | production 변경 2인 승인, GitHub org 웹훅으로 즉시 권한 회수, GitHub 팀 → 역할 템플릿 매핑, Slack 알림, Coolify Service 지원, 다른 배포 대상 제공자(AWS 등), 시크릿 교체 알림, 오프라인 캐시, `senv sync` | 항목별로 따로 결정 |
 
@@ -949,6 +951,9 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 13 | CLI 배포 | GitHub Packages 비공개 npm 레지스트리, 실행 명령 `senv` | 4.2, 6.3 |
 | 14 | Git·CI | GitHub + GitHub Actions | 4.2 |
 | 15 | 대시보드 디자인 시스템 | GitHub Primer (`@primer/react`) | 4.2 |
+| 16 | 환경 | `local`, `development`, `production` 세 개로 고정. 추가·삭제 없음 | 5.1 |
+| 17 | 공유 그룹 | `kind='shared'`인 특수 프로젝트 하나 | 5.1 |
+| 18 | 이름 규칙 | 소문자·숫자·하이픈, 32자 이하 | 5.1 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
