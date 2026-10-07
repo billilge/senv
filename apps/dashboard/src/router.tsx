@@ -8,7 +8,8 @@ import {
 import { AppLayout } from './layout/app-layout';
 import { DevicePage } from './pages/device-page';
 import { LoginPage } from './pages/login-page';
-import { ProjectPage, UsersPage } from './pages/placeholders';
+import { UsersPage } from './pages/placeholders';
+import { ProjectPage } from './pages/project-page';
 import { ProjectsPage } from './pages/projects-page';
 
 const rootRoute = createRootRoute({ component: Outlet });
@@ -37,7 +38,10 @@ const projectsRoute = createRoute({
 const projectRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/projects/$project',
-  component: ProjectPage,
+  component: function Project() {
+    const { project } = projectRoute.useParams();
+    return <ProjectPage project={project} />;
+  },
 });
 const deviceRoute = createRoute({
   getParentRoute: () => appRoute,
