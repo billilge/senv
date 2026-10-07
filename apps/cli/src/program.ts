@@ -3,10 +3,14 @@ import { ENVIRONMENT_NAMES, type EnvironmentName } from '@senv/core';
 import { Command, CommanderError, Option } from 'commander';
 import { NotLoggedInError } from './auth/session.js';
 import { login, logout, whoami } from './commands/auth.js';
+import { diff, status } from './commands/compare.js';
+import { doctor } from './commands/doctor.js';
+import { EXPORT_FORMATS, type ExportFormat, exportValues } from './commands/export.js';
 import { init } from './commands/init.js';
 import { get, list } from './commands/inspect.js';
 import { pull } from './commands/pull.js';
 import { run } from './commands/run.js';
+import { push, set } from './commands/write.js';
 import type { CliContext } from './context.js';
 
 export const VERSION = '0.1.0';
@@ -120,6 +124,70 @@ export async function main(argv: string[], options: MainOptions): Promise<number
     .action((key: string, opts: { env?: EnvironmentName }) =>
       withContext(async (ctx) => get(ctx, key, opts).then(() => 0)),
     );
+
+  program
+    .command('status')
+    .description('받은 파일의 버전을 서버 최신 버전과 견준다')
+    .addOption(envOption())
+    .option('--file <path>', '견줄 파일 (기본: senv.json의 output)')
+    .action((opts: { env?: EnvironmentName; file?: string }) =>
+      withContext(async (ctx) => status(ctx, opts).then(() => 0)),
+    );
+
+  program
+    .command('diff')
+    .description('받은 파일과 서버 값의 차이를 키 이름으로 보여준다 (값은 보여주지 않는다)')
+    .addOption(envOption())
+    .option('--file <path>', '견줄 파일 (기본: senv.json의 output)')
+    .action((opts: { env?: EnvironmentName; file?: string }) =>
+      withContext(async (ctx) => diff(ctx, opts).then(() => 0)),
+    );
+
+  program
+    .command('set')
+    .description('값을 바꿔 새 버전으로 게시한다 (예: senv set API_URL=https://… DEBUG=false)')
+    .argument('<assignments...>', 'KEY=VALUE')
+    .addOption(envOption())
+    .option('-m, --message <message>', '게시 메시지')
+    .option('-y, --yes', '묻지 않고 게시한다 (production은 프로젝트 이름을 다시 입력해야 한다)')
+    .action(
+      (assignments: string[], opts: { env?: EnvironmentName; message?: string; yes?: boolean }) =>
+        withContext(async (ctx) => set(ctx, assignments, opts).then(() => 0)),
+    );
+
+  program
+    .command('push')
+    .description('로컬 .env에서 서버와 달라진 값을 게시한다 (기존 파일 이관에 쓴다)')
+    .addOption(envOption())
+    .option('--file <path>', '올릴 파일 (기본: senv.json의 output)')
+    .option('--prune', '파일에 없는 키를 서버에서 지운다')
+    .option('-m, --message <message>', '게시 메시지')
+    .option('-y, --yes', '묻지 않고 게시한다 (production은 프로젝트 이름을 다시 입력해야 한다)')
+    .action(
+      (opts: {
+        env?: EnvironmentName;
+        file?: string;
+        prune?: boolean;
+        message?: string;
+        yes?: boolean;
+      }) => withContext(async (ctx) => push(ctx, opts).then(() => 0)),
+    );
+
+  program
+    .command('export')
+    .description('값을 원하는 형식으로 표준 출력에 쓴다')
+    .addOption(envOption())
+    .addOption(
+      new Option('--format <format>', '출력 형식').choices(EXPORT_FORMATS).default('dotenv'),
+    )
+    .action((opts: { env?: EnvironmentName; format: ExportFormat }) =>
+      withContext(async (ctx) => exportValues(ctx, opts).then(() => 0)),
+    );
+
+  program
+    .command('doctor')
+    .description('설정·로그인·.gitignore·필수 키·타입·클라이언트 노출을 점검한다')
+    .action(() => withContext((ctx) => doctor(ctx)));
 
   try {
     await program.parseAsync(argv);

@@ -73,6 +73,7 @@ describe('senv init', () => {
     const { context, cwd } = await setup(api);
     let offered: Choice<string>[] = [];
     context.prompt = {
+      ...context.prompt,
       select: async <T>(_message: string, choices: Choice<T>[]) => {
         offered = choices as Choice<string>[];
         return 'web' as T;

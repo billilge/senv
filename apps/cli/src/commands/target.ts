@@ -32,11 +32,7 @@ export async function fetchVariables(
   context: CliContext,
   target: Target,
 ): Promise<DeliveredValues> {
-  const delivered = await unwrap(
-    context.api.GET('/api/v1/projects/{project}/envs/{env}/variables', {
-      params: { path: { project: target.config.project, env: target.env } },
-    }),
-  );
+  const delivered = await getDelivered(context, target);
   // 노출 검사가 없는 이전 서버의 응답도 받는다
   const exposure = delivered.exposure ?? { exposedSecrets: [], unregistered: [] };
   if (exposure.exposedSecrets.length > 0) throw new ExposedSecretError(exposure.exposedSecrets);
@@ -46,4 +42,13 @@ export async function fetchVariables(
     );
   }
   return delivered;
+}
+
+/** 노출 검사 없이 값을 받는다 (status·diff·push·doctor는 값을 쓰거나 실행하지 않는다) */
+export function getDelivered(context: CliContext, target: Target): Promise<DeliveredValues> {
+  return unwrap(
+    context.api.GET('/api/v1/projects/{project}/envs/{env}/variables', {
+      params: { path: { project: target.config.project, env: target.env } },
+    }),
+  );
 }

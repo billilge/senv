@@ -119,4 +119,56 @@ describe('senv 명령줄', () => {
     expect(await exec('nope')).toBe(1);
     expect(stderr.join('')).toContain('nope');
   });
+
+  it('set·export·diff·status·push·doctor 명령이 연결돼 있다', async () => {
+    const api = new FakeApi()
+      .reply('GET', '/api/v1/projects/web/envs/local', {
+        status: 200,
+        body: { project: 'web', env: 'local', version: 3, variables: { A: '1' } },
+      })
+      .reply('POST', '/api/v1/projects/web/envs/local/versions', {
+        status: 201,
+        body: { version: 4, diff: { added: [], removed: [], changed: ['A'], unchanged: [] } },
+      })
+      .reply('GET', '/api/v1/projects/web/envs/local/variables', {
+        ...values({ A: '1' }),
+        body: { ...values({ A: '1' }).body, exposure: { exposedSecrets: [], unregistered: [] } },
+      })
+      .reply('GET', '/api/v1/me', {
+        status: 200,
+        body: {
+          id: 'u1',
+          githubId: '1',
+          login: 'alice',
+          name: null,
+          avatarUrl: null,
+          role: 'member',
+          status: 'active',
+        },
+      })
+      .reply('GET', '/api/v1/projects/web/schema', {
+        status: 200,
+        body: { publicPrefixes: [], keys: [] },
+      });
+    const { exec, stdout, stderr, cwd } = await setup(api);
+
+    expect(await exec('set', 'A=2', '--yes', '--message', 'm')).toBe(0);
+    expect(api.requests.find((r) => r.method === 'POST')?.body).toEqual({
+      baseVersion: 3,
+      changes: { set: { A: '2' } },
+      message: 'm',
+    });
+
+    stdout.length = 0;
+    expect(await exec('export', '--format', 'json')).toBe(0);
+    expect(JSON.parse(stdout.join(''))).toEqual({ A: '1' });
+    expect(await exec('export', '--format', 'xml')).toBe(2);
+
+    await writeFile(join(cwd, '.env.local'), '# senv: web/local v3 (shared v1)\nA=1\n');
+    expect(await exec('status')).toBe(0);
+    expect(await exec('diff')).toBe(0);
+    expect(await exec('push', '--yes')).toBe(0);
+    expect(await exec('doctor')).toBe(0);
+    expect(stderr.join('')).toMatch(/최신입니다/);
+  });
 });

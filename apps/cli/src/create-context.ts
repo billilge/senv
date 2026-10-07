@@ -51,6 +51,16 @@ export async function createRealContext(): Promise<CliContext> {
         if (clack.isCancel(value)) throw new Error('취소했습니다');
         return value as never;
       },
+      confirm: async (message) => {
+        const value = await clack.confirm({ message });
+        if (clack.isCancel(value)) throw new Error('취소했습니다');
+        return value;
+      },
+      text: async (message) => {
+        const value = await clack.text({ message });
+        if (clack.isCancel(value)) throw new Error('취소했습니다');
+        return value;
+      },
     },
     openBrowser: async (url) => {
       await open(url);

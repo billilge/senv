@@ -92,6 +92,12 @@ export async function createTestContext(
       select: async () => {
         throw new Error('테스트에서 정한 답이 없습니다');
       },
+      confirm: async () => {
+        throw new Error('테스트에서 정한 답이 없습니다');
+      },
+      text: async () => {
+        throw new Error('테스트에서 정한 답이 없습니다');
+      },
     },
     openBrowser: async (url) => {
       opened.push(url);
