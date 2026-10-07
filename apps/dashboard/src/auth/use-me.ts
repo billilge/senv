@@ -11,6 +11,8 @@ export function useMe() {
   const api = useApi();
   return useQuery({
     queryKey: ME_QUERY_KEY,
+    // 화면마다 다시 묻지 않도록 잠시 캐시한다. 로그아웃하면 캐시를 비운다
+    staleTime: 30_000,
     queryFn: async (): Promise<User | null> => {
       try {
         return await unwrap(api.GET('/api/v1/me'));

@@ -35,10 +35,14 @@ describe('로그인 상태에 따른 화면', () => {
   });
 
   it('로그아웃하면 서버에 알리고 로그인 화면으로 간다', async () => {
+    let loggedOut = false;
     const api = new FakeApi()
-      .reply('GET', '/api/v1/me', { status: 200, body: user() }, unauthorized)
+      .on('GET', '/api/v1/me', () => (loggedOut ? unauthorized : { status: 200, body: user() }))
       .reply('GET', '/api/v1/projects', projectsReply)
-      .reply('POST', '/api/v1/auth/logout', { status: 204 });
+      .on('POST', '/api/v1/auth/logout', () => {
+        loggedOut = true;
+        return { status: 204 };
+      });
     const { user: actor, history } = renderApp('/', api);
 
     await actor.click(await screen.findByRole('button', { name: '로그아웃' }));

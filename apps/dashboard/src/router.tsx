@@ -8,7 +8,8 @@ import {
 import { AppLayout } from './layout/app-layout';
 import { DevicePage } from './pages/device-page';
 import { LoginPage } from './pages/login-page';
-import { ProjectPage, ProjectsPage, UsersPage } from './pages/placeholders';
+import { ProjectPage, UsersPage } from './pages/placeholders';
+import { ProjectsPage } from './pages/projects-page';
 
 const rootRoute = createRootRoute({ component: Outlet });
 
