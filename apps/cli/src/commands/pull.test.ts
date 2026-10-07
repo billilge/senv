@@ -9,6 +9,7 @@ import { ProjectConfigNotFoundError } from '../config/project-config.js';
 import { createTestContext, FakeApi, signedIn } from '../testing/fake-api.js';
 import { makeTempDir } from '../testing/temp-dir.js';
 import { OutputNotIgnoredError, pull } from './pull.js';
+import { ExposedSecretError } from './target.js';
 
 const values = (env: string, variables: Record<string, string>) => ({
   status: 200,
@@ -143,5 +144,37 @@ describe('senv pull', () => {
   it('senv.json이 없으면 ProjectConfigNotFoundError다', async () => {
     const { context } = await setup(new FakeApi(), await makeTempDir());
     await expect(pull(context)).rejects.toThrow(ProjectConfigNotFoundError);
+  });
+
+  it('secret 키가 번들에 들어가는 이름(공개 접두사)이면 파일을 쓰지 않고 멈춘다', async () => {
+    const root = await webRepo();
+    const exposed = values('local', { VITE_SECRET: 's' });
+    const api = new FakeApi().reply('GET', '/api/v1/projects/web/envs/local/variables', {
+      ...exposed,
+      body: { ...exposed.body, exposure: { exposedSecrets: ['VITE_SECRET'], unregistered: [] } },
+    });
+    const { context } = await setup(api, root);
+
+    const error = await pull(context).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ExposedSecretError);
+    expect((error as Error).message).toContain('VITE_SECRET');
+    await expect(readFile(join(root, '.env.local'), 'utf8')).rejects.toThrow();
+  });
+
+  it('스키마에 없는데 공개 접두사가 붙은 키는 경고만 하고 쓴다', async () => {
+    const root = await webRepo();
+    const unregistered = values('local', { VITE_NEW: 'n' });
+    const api = new FakeApi().reply('GET', '/api/v1/projects/web/envs/local/variables', {
+      ...unregistered,
+      body: { ...unregistered.body, exposure: { exposedSecrets: [], unregistered: ['VITE_NEW'] } },
+    });
+    const { context, logs } = await setup(api, root);
+
+    await pull(context);
+
+    expect(logs.warn.join('\n')).toMatch(/VITE_NEW.*키 스키마/);
+    expect(parseDotenv(await readFile(join(root, '.env.local'), 'utf8'))).toEqual({
+      VITE_NEW: 'n',
+    });
   });
 });

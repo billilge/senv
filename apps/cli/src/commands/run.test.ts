@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { createTestContext, FakeApi, signedIn } from '../testing/fake-api.js';
 import { makeTempDir } from '../testing/temp-dir.js';
 import { CommandNotFoundError, MissingCommandError, run } from './run.js';
+import { ExposedSecretError } from './target.js';
 
 const values = (variables: Record<string, string>) => ({
   status: 200,
@@ -87,5 +88,18 @@ describe('senv run', () => {
       "process.kill(process.pid, 'SIGTERM')",
     ]);
     expect(exitCode).toBe(143);
+  });
+
+  it('secret 키가 번들에 들어가는 이름이면 명령을 실행하지 않는다', async () => {
+    const exposed = values({ VITE_SECRET: 's' });
+    const api = new FakeApi().reply('GET', '/api/v1/projects/web/envs/local/variables', {
+      ...exposed,
+      body: { ...exposed.body, exposure: { exposedSecrets: ['VITE_SECRET'], unregistered: [] } },
+    });
+    const { context, cwd } = await setup(api);
+    const out = join(cwd, 'env.json');
+
+    await expect(run(context, recordEnv(out, ['VITE_SECRET']))).rejects.toThrow(ExposedSecretError);
+    await expect(access(out)).rejects.toThrow();
   });
 });
