@@ -1,0 +1,34 @@
+{
+  "name": "@senv/target-testkit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@senv/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "vitest": "5.0.3"
+  },
+  "devDependencies": {
+    "@senv/config": "workspace:*",
+    "@types/node": "^24.19.1",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}
