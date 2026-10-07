@@ -1,0 +1,39 @@
+{
+  "name": "@billilge/senv",
+  "version": "0.1.0",
+  "description": "Stream Env Control CLI: 환경변수를 받아 쓰고 실행한다",
+  "type": "module",
+  "bin": {
+    "senv": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "1.8.1",
+    "@napi-rs/keyring": "2.1.0",
+    "commander": "15.0.0",
+    "open": "11.0.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@senv/api-client": "workspace:*",
+    "@senv/config": "workspace:*",
+    "@senv/core": "workspace:*",
+    "@types/node": "^24.19.1",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}
