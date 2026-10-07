@@ -47,7 +47,7 @@ export class ApiTokenService {
       where: { tokenHash: hashToken(accessToken) },
       select: { kind: true, expiresAt: true, revokedAt: true, user: { select: USER_FIELDS } },
     });
-    if (!row || row.kind !== 'access' || row.revokedAt || row.expiresAt <= this.now()) return null;
+    if (row?.kind !== 'access' || row.revokedAt || row.expiresAt <= this.now()) return null;
     if (row.user.status === 'disabled') return null;
     return row.user;
   }
@@ -69,7 +69,7 @@ export class ApiTokenService {
       },
     });
     const now = this.now();
-    if (!row || row.kind !== 'refresh') throw new InvalidRefreshTokenError();
+    if (row?.kind !== 'refresh') throw new InvalidRefreshTokenError();
     if (row.expiresAt <= now || row.user.status === 'disabled')
       throw new InvalidRefreshTokenError();
 
