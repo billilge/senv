@@ -57,6 +57,15 @@ describe('OpenAPI 문서', () => {
         'DELETE /api/v1/targets/connections/{id}',
         'POST /api/v1/targets/connections/{id}/test',
         'GET /api/v1/targets/connections/{id}/resources',
+        'GET /api/v1/projects/{project}/targets',
+        'POST /api/v1/projects/{project}/targets',
+        'PATCH /api/v1/targets/mappings/{id}',
+        'DELETE /api/v1/targets/mappings/{id}',
+        'GET /api/v1/targets/mappings/{id}/plan',
+        'POST /api/v1/targets/mappings/{id}/sync',
+        'GET /api/v1/targets/mappings/{id}/runs',
+        'POST /api/v1/targets/mappings/{id}/import',
+        'POST /api/v1/targets/mappings/{id}/drift',
       ].sort(),
     );
   });

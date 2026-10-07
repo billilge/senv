@@ -39,6 +39,12 @@ import {
   ConnectionNameTakenError,
   ConnectionNotFoundError,
 } from '../targets/connections-service.js';
+import {
+  MappingNotFoundError,
+  ResourceAlreadyMappedError,
+  SharedGroupNotDeployableError,
+} from '../targets/mappings-service.js';
+import { ImportNotSupportedError } from '../targets/sync-service.js';
 import { UnknownProviderError } from '../targets/target-registry.js';
 import {
   AdminRequiredError,
@@ -128,6 +134,10 @@ const RULES: Rule[] = [
   { type: TargetAuthError, status: 422, code: 'target_auth_failed' },
   { type: TargetNotFoundError, status: 404, code: 'target_resource_not_found' },
   { type: TargetUnavailableError, status: 502, code: 'target_unavailable' },
+  { type: MappingNotFoundError, status: 404, code: 'mapping_not_found' },
+  { type: ResourceAlreadyMappedError, status: 409, code: 'resource_already_mapped' },
+  { type: SharedGroupNotDeployableError, status: 422, code: 'shared_not_deployable' },
+  { type: ImportNotSupportedError, status: 422, code: 'import_not_supported' },
   {
     type: PublishValidationError,
     status: 422,

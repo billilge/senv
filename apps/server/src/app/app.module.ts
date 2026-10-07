@@ -24,6 +24,9 @@ import { PublishService } from '../publishing/publish-service.js';
 import { SnapshotService } from '../snapshots/snapshot-service.js';
 import { SnapshotStore } from '../storage/snapshot-store.js';
 import { ConnectionsService } from '../targets/connections-service.js';
+import { MappingsController } from '../targets/mappings.controller.js';
+import { MappingsService } from '../targets/mappings-service.js';
+import { SyncService } from '../targets/sync-service.js';
 import { TargetRegistry } from '../targets/target-registry.js';
 import { TargetsController } from '../targets/targets.controller.js';
 import { RoleAssignmentsController } from '../users/role-assignments.controller.js';
@@ -60,6 +63,7 @@ export class AppModule {
         UsersController,
         RoleAssignmentsController,
         TargetsController,
+        MappingsController,
       ],
       providers: [
         { provide: APP_GUARD, useClass: AuthGuard },
@@ -98,6 +102,42 @@ export class AppModule {
             now: Clock,
           ) => new ConnectionsService(prisma, registry, config.keyring, now),
           inject: [PrismaClient, TargetRegistry, SERVER_CONFIG, CLOCK],
+        },
+        {
+          provide: MappingsService,
+          useFactory: (prisma: PrismaClient, connections: ConnectionsService, now: Clock) =>
+            new MappingsService(prisma, connections, now),
+          inject: [PrismaClient, ConnectionsService, CLOCK],
+        },
+        {
+          provide: SyncService,
+          useFactory: (
+            prisma: PrismaClient,
+            connections: ConnectionsService,
+            delivery: DeliveryService,
+            schemas: KeySchemaService,
+            publishing: PublishService,
+            config: ServerConfig,
+            now: Clock,
+          ) =>
+            new SyncService(
+              prisma,
+              connections,
+              delivery,
+              schemas,
+              publishing,
+              config.keyring,
+              now,
+            ),
+          inject: [
+            PrismaClient,
+            ConnectionsService,
+            DeliveryService,
+            KeySchemaService,
+            PublishService,
+            SERVER_CONFIG,
+            CLOCK,
+          ],
         },
         {
           provide: KeySchemaService,

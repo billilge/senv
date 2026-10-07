@@ -1882,6 +1882,566 @@
           "targets"
         ]
       }
+    },
+    "/api/v1/projects/{project}/targets": {
+      "get": {
+        "operationId": "MappingsController_list",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetMappingList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      },
+      "post": {
+        "operationId": "MappingsController_create",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "env": {
+                    "type": "string",
+                    "enum": [
+                      "local",
+                      "development",
+                      "production"
+                    ]
+                  },
+                  "resourceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "syncMode": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "manual"
+                    ]
+                  },
+                  "afterSync": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "none",
+                      "restart",
+                      "redeploy"
+                    ]
+                  },
+                  "unmanaged": {
+                    "type": "string",
+                    "enum": [
+                      "keep",
+                      "delete"
+                    ]
+                  },
+                  "include": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  },
+                  "exclude": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  },
+                  "options": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "env",
+                  "resourceId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetMapping"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/mappings/{id}": {
+      "patch": {
+        "operationId": "MappingsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "env": {
+                    "type": "string",
+                    "enum": [
+                      "local",
+                      "development",
+                      "production"
+                    ]
+                  },
+                  "syncMode": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "manual"
+                    ]
+                  },
+                  "afterSync": {
+                    "type": "string",
+                    "enum": [
+                      "auto",
+                      "none",
+                      "restart",
+                      "redeploy"
+                    ]
+                  },
+                  "unmanaged": {
+                    "type": "string",
+                    "enum": [
+                      "keep",
+                      "delete"
+                    ]
+                  },
+                  "include": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  },
+                  "exclude": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 100
+                    }
+                  },
+                  "options": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetMapping"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      },
+      "delete": {
+        "operationId": "MappingsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "지움"
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/mappings/{id}/plan": {
+      "get": {
+        "operationId": "MappingsController_plan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPreview"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/mappings/{id}/sync": {
+      "post": {
+        "operationId": "MappingsController_syncNow",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncRun"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/mappings/{id}/runs": {
+      "get": {
+        "operationId": "MappingsController_runs",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncRunList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/mappings/{id}/import": {
+      "post": {
+        "operationId": "MappingsController_importRemote",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
+    },
+    "/api/v1/targets/mappings/{id}/drift": {
+      "post": {
+        "operationId": "MappingsController_drift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriftResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "targets"
+        ]
+      }
     }
   },
   "info": {
@@ -2765,6 +3325,393 @@
         },
         "required": [
           "resources"
+        ],
+        "additionalProperties": false
+      },
+      "TargetMappingList": {
+        "type": "object",
+        "properties": {
+          "mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TargetMapping"
+            }
+          }
+        },
+        "required": [
+          "mappings"
+        ],
+        "additionalProperties": false
+      },
+      "TargetMapping": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "env": {
+            "type": "string",
+            "enum": [
+              "local",
+              "development",
+              "production"
+            ]
+          },
+          "connection": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "resourceName": {
+            "type": "string"
+          },
+          "syncMode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "manual"
+            ]
+          },
+          "afterSync": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "none",
+              "restart",
+              "redeploy"
+            ]
+          },
+          "unmanaged": {
+            "type": "string",
+            "enum": [
+              "keep",
+              "delete"
+            ]
+          },
+          "include": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "lastSync": {
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "sharedVersion": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "at": {
+                "type": "string",
+                "description": "ISO 8601 시각"
+              }
+            },
+            "required": [
+              "version",
+              "sharedVersion",
+              "at"
+            ],
+            "additionalProperties": false
+          },
+          "lastRun": {
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "succeeded",
+                  "skipped",
+                  "failed"
+                ]
+              },
+              "trigger": {
+                "type": "string",
+                "enum": [
+                  "publish",
+                  "manual"
+                ]
+              },
+              "action": {
+                "nullable": true,
+                "type": "string"
+              },
+              "error": {
+                "nullable": true,
+                "type": "string"
+              },
+              "at": {
+                "type": "string",
+                "description": "ISO 8601 시각"
+              }
+            },
+            "required": [
+              "status",
+              "trigger",
+              "action",
+              "error",
+              "at"
+            ],
+            "additionalProperties": false
+          },
+          "driftKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "인프라에서 직접 바뀐 키"
+          },
+          "driftCheckedAt": {
+            "nullable": true,
+            "type": "string",
+            "description": "ISO 8601 시각"
+          }
+        },
+        "required": [
+          "id",
+          "project",
+          "env",
+          "connection",
+          "resourceId",
+          "resourceName",
+          "syncMode",
+          "afterSync",
+          "unmanaged",
+          "include",
+          "exclude",
+          "options",
+          "lastSync",
+          "lastRun",
+          "driftKeys",
+          "driftCheckedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SyncPreview": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "sharedVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "add": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "change": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "remove": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unchanged": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "action": {
+            "nullable": true,
+            "type": "string",
+            "enum": [
+              "restart",
+              "redeploy"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "sharedVersion",
+          "add",
+          "change",
+          "remove",
+          "unchanged",
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "SyncRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "publish",
+              "manual"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "skipped",
+              "failed"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "sharedVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "changedKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "action": {
+            "nullable": true,
+            "type": "string",
+            "enum": [
+              "restart",
+              "redeploy"
+            ]
+          },
+          "providerRef": {
+            "nullable": true,
+            "type": "string"
+          },
+          "error": {
+            "nullable": true,
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "ISO 8601 시각"
+          },
+          "finishedAt": {
+            "type": "string",
+            "description": "ISO 8601 시각"
+          }
+        },
+        "required": [
+          "id",
+          "trigger",
+          "status",
+          "version",
+          "sharedVersion",
+          "changedKeys",
+          "action",
+          "providerRef",
+          "error",
+          "attempt",
+          "startedAt",
+          "finishedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SyncRunList": {
+        "type": "object",
+        "properties": {
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncRun"
+            }
+          }
+        },
+        "required": [
+          "runs"
+        ],
+        "additionalProperties": false
+      },
+      "ImportResult": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "keys"
+        ],
+        "additionalProperties": false
+      },
+      "DriftResult": {
+        "type": "object",
+        "properties": {
+          "driftKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "driftKeys"
         ],
         "additionalProperties": false
       }

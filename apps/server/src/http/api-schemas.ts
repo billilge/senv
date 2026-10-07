@@ -204,6 +204,86 @@ export const targetResourceListSchema = z
   })
   .meta({ id: 'TargetResourceList' });
 
+const syncStatusSchema = z.enum(['succeeded', 'skipped', 'failed']);
+const syncTriggerSchema = z.enum(['publish', 'manual']);
+const targetActionSchema = z.enum(['restart', 'redeploy']);
+
+export const targetMappingSchema = z
+  .object({
+    id: z.string(),
+    project: z.string(),
+    env: z.enum(ENVIRONMENT_NAMES),
+    connection: z.object({ id: z.string(), name: z.string(), type: z.string() }),
+    resourceId: z.string(),
+    resourceName: z.string(),
+    syncMode: z.enum(['auto', 'manual']),
+    afterSync: z.enum(['auto', 'none', 'restart', 'redeploy']),
+    unmanaged: z.enum(['keep', 'delete']),
+    include: z.array(z.string()),
+    exclude: z.array(z.string()),
+    options: z.record(z.string(), z.unknown()),
+    lastSync: z
+      .object({ version: z.number().int(), sharedVersion: z.number().int(), at: isoDateTime })
+      .nullable(),
+    lastRun: z
+      .object({
+        status: syncStatusSchema,
+        trigger: syncTriggerSchema,
+        action: z.string().nullable(),
+        error: z.string().nullable(),
+        at: isoDateTime,
+      })
+      .nullable(),
+    driftKeys: z.array(z.string()).describe('인프라에서 직접 바뀐 키'),
+    driftCheckedAt: isoDateTime.nullable(),
+  })
+  .meta({ id: 'TargetMapping' });
+
+export const targetMappingListSchema = z
+  .object({ mappings: z.array(targetMappingSchema) })
+  .meta({ id: 'TargetMappingList' });
+
+export const syncPreviewSchema = z
+  .object({
+    version: z.number().int(),
+    sharedVersion: z.number().int(),
+    add: z.array(z.string()),
+    change: z.array(z.string()),
+    remove: z.array(z.string()),
+    unchanged: z.number().int(),
+    action: targetActionSchema.nullable(),
+  })
+  .meta({ id: 'SyncPreview' });
+
+export const syncRunSchema = z
+  .object({
+    id: z.string(),
+    trigger: syncTriggerSchema,
+    status: syncStatusSchema,
+    version: z.number().int(),
+    sharedVersion: z.number().int(),
+    changedKeys: z.array(z.string()),
+    action: targetActionSchema.nullable(),
+    providerRef: z.string().nullable(),
+    error: z.string().nullable(),
+    attempt: z.number().int(),
+    startedAt: isoDateTime,
+    finishedAt: isoDateTime,
+  })
+  .meta({ id: 'SyncRun' });
+
+export const syncRunListSchema = z
+  .object({ runs: z.array(syncRunSchema) })
+  .meta({ id: 'SyncRunList' });
+
+export const importResultSchema = z
+  .object({ version: z.number().int(), keys: z.array(z.string()) })
+  .meta({ id: 'ImportResult' });
+
+export const driftResultSchema = z
+  .object({ driftKeys: z.array(z.string()) })
+  .meta({ id: 'DriftResult' });
+
 export const tokenPairSchema = z
   .object({
     accessToken: z.string(),
