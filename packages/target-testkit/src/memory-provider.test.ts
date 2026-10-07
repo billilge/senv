@@ -1,6 +1,7 @@
 import { TargetUnavailableError } from '@senv/core';
 import { describe, expect, it } from 'vitest';
-import { describeProviderContract, MemoryTargetProvider } from './index';
+import { describeProviderContract } from './contract';
+import { MemoryTargetProvider } from './index';
 
 describeProviderContract('MemoryTargetProvider', () => ({
   provider: new MemoryTargetProvider({ resources: [{ id: 'app-1', name: 'stream-api' }] }),

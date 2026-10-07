@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-e2e/
 coverage/
 .turbo/
 *.tsbuildinfo
@@ -12,3 +13,7 @@ coverage/
 .vitest/
 apps/server/src/generated/
 packages/api-client/src/generated/
+
+# Playwright
+test-results/
+playwright-report/

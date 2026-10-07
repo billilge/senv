@@ -1,5 +1,5 @@
 import { TargetNotFoundError, TargetUnavailableError } from '@senv/core';
-import { describeProviderContract } from '@senv/target-testkit';
+import { describeProviderContract } from '@senv/target-testkit/contract';
 import { describe, expect, it } from 'vitest';
 import { createCoolifyProvider } from './index';
 import { createFakeCoolify } from './testing/fake-coolify';

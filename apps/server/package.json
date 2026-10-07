@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "start:worker": "node dist/worker.js",
+    "build:e2e": "tsc -p tsconfig.e2e.json",
     "test": "vitest run --passWithNoTests",
     "test:unit": "prisma generate && vitest run --project unit",
     "test:int": "prisma generate && vitest run --project integration",

@@ -12,7 +12,8 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "verify": "biome check . && turbo run typecheck build test",
-    "smoke:docker": "bash scripts/docker-smoke.sh"
+    "smoke:docker": "bash scripts/docker-smoke.sh",
+    "test:browser": "turbo run build --filter=@senv/dashboard --filter=@senv/server && pnpm --filter @senv/e2e test:browser"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
