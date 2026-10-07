@@ -17,6 +17,7 @@ import { ProjectsService } from '../projects/projects-service.js';
 import { PublishService } from '../publishing/publish-service.js';
 import { SnapshotService } from '../snapshots/snapshot-service.js';
 import { SnapshotStore } from '../storage/snapshot-store.js';
+import { UsersController } from '../users/users.controller.js';
 import { UsersService } from '../users/users-service.js';
 import { type AppDependencies, CLOCK, SERVER_CONFIG } from './app-dependencies.js';
 
@@ -32,7 +33,13 @@ export class AppModule {
   static register(deps: AppDependencies): DynamicModule {
     return {
       module: AppModule,
-      controllers: [HealthController, AuthController, WebAuthController, ProjectsController],
+      controllers: [
+        HealthController,
+        AuthController,
+        WebAuthController,
+        ProjectsController,
+        UsersController,
+      ],
       providers: [
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: SERVER_CONFIG, useValue: deps.config },
