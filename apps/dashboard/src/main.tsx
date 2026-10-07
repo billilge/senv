@@ -1,5 +1,6 @@
-import '@primer/primitives/dist/css/functional/themes/light.css';
+// 다크 모드만 지원한다 (GitHub 다크 테마)
 import '@primer/primitives/dist/css/functional/themes/dark.css';
+import './global.css';
 import { createSenvClient, type SenvClient } from '@senv/api-client';
 import { type ReactNode, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

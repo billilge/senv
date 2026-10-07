@@ -49,7 +49,7 @@ const PERSONAS: [MockPersona, string][] = [
 function MockToolbar({ server }: { server: MockServer }) {
   const reload = () => window.location.reload();
   return (
-    <ThemeProvider colorMode="auto">
+    <ThemeProvider colorMode="dark" nightScheme="dark">
       <BaseStyles>
         <div
           style={{

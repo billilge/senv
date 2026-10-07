@@ -27,7 +27,7 @@ export function App({ client, history }: AppProps) {
   const [router] = useState(() => createAppRouter(history));
 
   return (
-    <ThemeProvider colorMode="auto">
+    <ThemeProvider colorMode="dark" nightScheme="dark">
       <BaseStyles>
         <QueryClientProvider client={queryClient}>
           <ApiProvider client={client}>

@@ -1,0 +1,12 @@
+/* 다크 모드 전용. html에 붙인 data-color-mode="dark" 덕분에 Primer 변수를 body에서도 쓸 수 있다 */
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--bgColor-default);
+  color: var(--fgColor-default);
+  color-scheme: dark;
+}
