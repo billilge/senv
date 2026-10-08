@@ -2,6 +2,7 @@ import { type INestApplication, StandardSchemaValidationPipe } from '@nestjs/com
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import { readWebhookBody, WEBHOOK_PATH } from '../github-app/webhook-body.js';
 import { RequestValidationError } from '../http/api-error.js';
 import { ApiExceptionFilter } from '../http/api-exception.filter.js';
 import { AppModule } from './app.module.js';
@@ -18,6 +19,8 @@ export async function createApp(
   // Coolify의 Traefik 뒤에서 실제 클라이언트 IP를 읽는다 (속도 제한)
   app.set('trust proxy', deps.config.trustProxyHops);
   app.use(cookieParser());
+  // 웹훅 서명은 받은 바이트로 확인한다. JSON 파서보다 먼저 본문을 읽는다
+  app.use(WEBHOOK_PATH, readWebhookBody);
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalPipes(
     new StandardSchemaValidationPipe({

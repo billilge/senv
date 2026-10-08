@@ -17,6 +17,15 @@ import {
 import { GitHubAuthError, GitHubUnavailableError } from '../auth/github-client.js';
 import { BrokenReferenceError } from '../delivery/delivery-service.js';
 import {
+  ExampleFileNotFoundError,
+  ExampleSourceNotFoundError,
+  GitHubAppDisabledError,
+  InvalidExamplePathError,
+  RepositoryNotInstalledError,
+  SharedGroupNoExampleError,
+} from '../example-sources/example-source-service.js';
+import { GitHubAppAccessError } from '../github-app/github-app-client.js';
+import {
   InvalidKeyNameError,
   InvalidPublicPrefixError,
   KeySchemaNotFoundError,
@@ -154,6 +163,13 @@ const RULES: Rule[] = [
   { type: LocalLinkNotActiveError, status: 409, code: 'local_link_not_active' },
   { type: InvalidLocalPathError, status: 422, code: 'invalid_local_path' },
   { type: SharedGroupNotLinkableError, status: 422, code: 'shared_group_not_linkable' },
+  { type: GitHubAppDisabledError, status: 404, code: 'github_app_disabled' },
+  { type: ExampleSourceNotFoundError, status: 404, code: 'example_source_not_found' },
+  { type: InvalidExamplePathError, status: 422, code: 'invalid_example_path' },
+  { type: SharedGroupNoExampleError, status: 422, code: 'shared_group_no_example' },
+  { type: RepositoryNotInstalledError, status: 422, code: 'repository_not_installed' },
+  { type: ExampleFileNotFoundError, status: 422, code: 'example_not_found' },
+  { type: GitHubAppAccessError, status: 422, code: 'github_app_access_denied' },
   {
     type: PublishValidationError,
     status: 422,

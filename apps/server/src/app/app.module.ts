@@ -12,7 +12,11 @@ import { SessionService } from '../auth/session-service.js';
 import { WebAuthController } from '../auth/web-auth.controller.js';
 import type { ServerConfig } from '../config/server-config.js';
 import { DeliveryService } from '../delivery/delivery-service.js';
+import { ExampleSourceService } from '../example-sources/example-source-service.js';
+import { ExampleSourcesController } from '../example-sources/example-sources.controller.js';
 import { PrismaClient } from '../generated/prisma/client.js';
+import { GitHubAppController } from '../github-app/github-app.controller.js';
+import { HttpGitHubAppClient } from '../github-app/http-github-app-client.js';
 import { HealthController } from '../health/health.controller.js';
 import { AuthGuard } from '../http/auth.guard.js';
 import { RATE_LIMITS } from '../http/rate-limit.js';
@@ -69,6 +73,8 @@ export class AppModule {
         TargetsController,
         MappingsController,
         LocalLinksController,
+        ExampleSourcesController,
+        GitHubAppController,
       ],
       providers: [
         { provide: APP_GUARD, useClass: AuthGuard },
@@ -148,6 +154,25 @@ export class AppModule {
           provide: LocalLinksService,
           useFactory: (prisma: PrismaClient, now: Clock) => new LocalLinksService(prisma, now),
           inject: [PrismaClient, CLOCK],
+        },
+        {
+          provide: ExampleSourceService,
+          // GitHub App을 설정하지 않으면 클라이언트 없이 만들어 연결·웹훅이 꺼진다 (결정 73)
+          useFactory: (
+            prisma: PrismaClient,
+            schemas: KeySchemaService,
+            config: ServerConfig,
+            now: Clock,
+          ) =>
+            new ExampleSourceService(
+              prisma,
+              schemas,
+              config.githubApp
+                ? (deps.githubApp ?? new HttpGitHubAppClient(config.githubApp, now))
+                : null,
+              now,
+            ),
+          inject: [PrismaClient, KeySchemaService, SERVER_CONFIG, CLOCK],
         },
         {
           provide: KeySchemaService,

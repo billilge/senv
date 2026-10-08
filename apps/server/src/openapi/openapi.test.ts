@@ -79,13 +79,19 @@ describe('OpenAPI 문서', () => {
         'POST /api/v1/agent/links/{id}/approve',
         'POST /api/v1/agent/links/{id}/reject',
         'POST /api/v1/agent/links/{id}/report',
+        'GET /api/v1/github/repositories',
+        'GET /api/v1/projects/{project}/example-source',
+        'PUT /api/v1/projects/{project}/example-source',
+        'DELETE /api/v1/projects/{project}/example-source',
+        'POST /api/v1/projects/{project}/example-source/check',
       ].sort(),
     );
   });
 
-  it('브라우저 리다이렉트용 GitHub 로그인 경로는 담지 않는다', () => {
+  it('브라우저 리다이렉트용 GitHub 로그인 경로와 GitHub 웹훅은 담지 않는다', () => {
     expect(Object.keys(document.paths)).not.toContain('/auth/github');
     expect(Object.keys(document.paths)).not.toContain('/auth/github/callback');
+    expect(Object.keys(document.paths)).not.toContain('/api/v1/github/webhook');
   });
 
   it('요청 본문 스키마는 서버 검증에 쓰는 Zod 스키마에서 나온다', () => {

@@ -340,3 +340,35 @@ export const localLinkSchema = z
 export const localLinkListSchema = z
   .object({ links: z.array(localLinkSchema) })
   .meta({ id: 'LocalLinkList' });
+
+export const exampleSourceSchema = z
+  .object({
+    repoId: z.number().int().describe('GitHub 저장소 숫자 id'),
+    repoFullName: z.string(),
+    path: z.string().describe('저장소 루트 기준 파일 경로'),
+    fileUrl: z.string().describe('GitHub 기본 브랜치에서 파일을 보는 주소'),
+    lastResult: z.enum(['ok', 'not_found', 'no_access', 'too_large', 'error']).nullable(),
+    lastMessage: z.string().nullable(),
+    lastCheckedAt: isoDateTime.nullable(),
+    keys: z.array(z.string()).describe('마지막으로 읽은 예시의 키'),
+    lastAdded: z.array(z.string()).describe('파일이 마지막으로 바뀌었을 때 새로 등록한 키'),
+    lastRemoved: z
+      .array(z.string())
+      .describe('파일이 마지막으로 바뀌었을 때 예시에서 빠진 키. 키 스키마에서 지우지 않는다'),
+    skipped: z
+      .array(z.object({ line: z.number().int(), reason: z.enum(['invalid_key', 'no_assignment']) }))
+      .describe('읽지 못한 줄'),
+  })
+  .meta({ id: 'ExampleSource' });
+
+export const exampleSourceStatusSchema = z
+  .object({
+    enabled: z.boolean().describe('GitHub App이 설정되어 있는지'),
+    installUrl: z.string().nullable().describe('GitHub App을 저장소에 설치하는 주소'),
+    source: exampleSourceSchema.nullable(),
+  })
+  .meta({ id: 'ExampleSourceStatus' });
+
+export const githubRepositoryListSchema = z
+  .object({ repositories: z.array(z.object({ id: z.number().int(), fullName: z.string() })) })
+  .meta({ id: 'GitHubRepositoryList' });

@@ -9,16 +9,27 @@ import type { ServerConfig } from '../config/server-config.js';
 import { InMemorySnapshotStore } from '../storage/in-memory-snapshot-store.js';
 import { createTestPrisma } from './database.js';
 import { FakeGitHubClient } from './fake-github.js';
+import { FakeGitHubAppClient } from './fake-github-app.js';
 import { createTestUser } from './users.js';
 
 export const TEST_APP_URL = 'http://localhost:3000';
+export const TEST_WEBHOOK_SECRET = 'test-webhook-secret';
 
-/** 테스트용 의존성(실제 MySQL, 메모리 저장소, 가짜 GitHub)으로 HTTP 앱을 띄운다 */
+/**
+ * 테스트용 의존성(실제 MySQL, 메모리 저장소, 가짜 GitHub)으로 HTTP 앱을 띄운다.
+ * GitHub App(.env.example 연결)은 가짜로 켜 두고, githubApp: false면 끈다
+ */
 export async function createTestApp(
-  options: { now?: () => Date; bootstrapAdmins?: string[]; dashboardDir?: string } = {},
+  options: {
+    now?: () => Date;
+    bootstrapAdmins?: string[];
+    dashboardDir?: string;
+    githubApp?: false;
+  } = {},
 ) {
   const prisma = createTestPrisma();
   const github = new FakeGitHubClient();
+  const githubApp = new FakeGitHubAppClient();
   const store = new InMemorySnapshotStore();
   // 배포 대상은 메모리 제공자로 (Coolify에 붙지 않는다)
   const targets = new MemoryTargetProvider({
@@ -38,7 +49,15 @@ export async function createTestApp(
     bootstrapAdmins: options.bootstrapAdmins ?? ['admin'],
     // 테스트는 X-Forwarded-For로 클라이언트 IP를 바꿔 가며 보낸다
     trustProxyHops: 1,
-    githubApp: null,
+    githubApp:
+      options.githubApp === false
+        ? null
+        : {
+            appId: '1',
+            privateKey: 'unused',
+            webhookSecret: TEST_WEBHOOK_SECRET,
+            slug: 'senv-test',
+          },
   };
 
   const app: INestApplication = await createApp(
@@ -47,6 +66,7 @@ export async function createTestApp(
       prisma,
       snapshotStore: store,
       github,
+      githubApp,
       now: options.now,
       dashboardDir: options.dashboardDir,
       targetProviders: [targets],
@@ -60,6 +80,7 @@ export async function createTestApp(
     http: () => request(app.getHttpServer()),
     prisma,
     github,
+    githubApp,
     store,
     targets,
     config,

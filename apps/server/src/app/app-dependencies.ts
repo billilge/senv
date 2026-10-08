@@ -1,6 +1,7 @@
 import type { GitHubClient } from '../auth/github-client.js';
 import type { ServerConfig } from '../config/server-config.js';
 import type { PrismaClient } from '../generated/prisma/client.js';
+import type { GitHubAppClient } from '../github-app/github-app-client.js';
 import type { SnapshotStore } from '../storage/snapshot-store.js';
 import type { AnyProvider } from '../targets/target-registry.js';
 
@@ -10,6 +11,8 @@ export interface AppDependencies {
   prisma: PrismaClient;
   snapshotStore: SnapshotStore;
   github: GitHubClient;
+  /** .env.example을 읽는 GitHub App 클라이언트. 없으면 config.githubApp으로 실제 클라이언트를 만든다 */
+  githubApp?: GitHubAppClient;
   now?: () => Date;
   /** 대시보드 빌드 결과(index.html, assets/) 폴더. 없으면 API만 연다 */
   dashboardDir?: string;

@@ -3145,6 +3145,252 @@
           "local-links"
         ]
       }
+    },
+    "/api/v1/projects/{project}/example-source": {
+      "get": {
+        "operationId": "ExampleSourcesController_status",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExampleSourceStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "example-source"
+        ]
+      },
+      "put": {
+        "operationId": "ExampleSourcesController_link",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "repoId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "path": {
+                    "type": "string",
+                    "maxLength": 512
+                  }
+                },
+                "required": [
+                  "repoId",
+                  "path"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExampleSource"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "example-source"
+        ]
+      },
+      "delete": {
+        "operationId": "ExampleSourcesController_unlink",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "연결을 끊었다. 등록된 키는 남는다"
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "example-source"
+        ]
+      }
+    },
+    "/api/v1/projects/{project}/example-source/check": {
+      "post": {
+        "operationId": "ExampleSourcesController_check",
+        "parameters": [
+          {
+            "name": "project",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExampleSource"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "example-source"
+        ]
+      }
+    },
+    "/api/v1/github/repositories": {
+      "get": {
+        "operationId": "GitHubAppController_repositories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubRepositoryList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "github"
+        ]
+      }
     }
   },
   "info": {
@@ -4617,6 +4863,167 @@
           "lastState",
           "overwriteRequested",
           "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "ExampleSourceStatus": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "GitHub App이 설정되어 있는지"
+          },
+          "installUrl": {
+            "nullable": true,
+            "description": "GitHub App을 저장소에 설치하는 주소",
+            "type": "string"
+          },
+          "source": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExampleSource"
+              }
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "installUrl",
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "ExampleSource": {
+        "type": "object",
+        "properties": {
+          "repoId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "GitHub 저장소 숫자 id"
+          },
+          "repoFullName": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "저장소 루트 기준 파일 경로"
+          },
+          "fileUrl": {
+            "type": "string",
+            "description": "GitHub 기본 브랜치에서 파일을 보는 주소"
+          },
+          "lastResult": {
+            "nullable": true,
+            "type": "string",
+            "enum": [
+              "ok",
+              "not_found",
+              "no_access",
+              "too_large",
+              "error"
+            ]
+          },
+          "lastMessage": {
+            "nullable": true,
+            "type": "string"
+          },
+          "lastCheckedAt": {
+            "nullable": true,
+            "type": "string",
+            "description": "ISO 8601 시각"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "마지막으로 읽은 예시의 키"
+          },
+          "lastAdded": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "파일이 마지막으로 바뀌었을 때 새로 등록한 키"
+          },
+          "lastRemoved": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "파일이 마지막으로 바뀌었을 때 예시에서 빠진 키. 키 스키마에서 지우지 않는다"
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "line": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "invalid_key",
+                    "no_assignment"
+                  ]
+                }
+              },
+              "required": [
+                "line",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "description": "읽지 못한 줄"
+          }
+        },
+        "required": [
+          "repoId",
+          "repoFullName",
+          "path",
+          "fileUrl",
+          "lastResult",
+          "lastMessage",
+          "lastCheckedAt",
+          "keys",
+          "lastAdded",
+          "lastRemoved",
+          "skipped"
+        ],
+        "additionalProperties": false
+      },
+      "GitHubRepositoryList": {
+        "type": "object",
+        "properties": {
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "fullName": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "fullName"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "repositories"
         ],
         "additionalProperties": false
       }
