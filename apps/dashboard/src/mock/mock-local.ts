@@ -31,7 +31,7 @@ export interface MockLocalState {
   links: MockLocalLink[];
 }
 
-const AT = '2026-10-09T09:00:00.000Z';
+const AT = '2026-10-01T09:00:00.000Z';
 
 export function initialLocal(): MockLocalState {
   return {
@@ -47,7 +47,7 @@ export function initialLocal(): MockLocalState {
         path: '/Users/me/work/stream-web',
         status: 'active',
         approvedAt: AT,
-        lastWritten: { version: 1, sharedVersion: 1, at: AT },
+        lastWritten: { version: 2, sharedVersion: 1, at: AT },
         lastState: { state: 'ok', message: null, at: AT },
         overwriteRequested: false,
         createdAt: AT,

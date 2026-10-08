@@ -1,5 +1,7 @@
 // biome-ignore-all lint/suspicious/noTemplateCurlyInString: ${shared.KEY} 참조 문법을 글자 그대로 쓴다
 import { describe, expect, it } from 'vitest';
+import { linkSummary } from '../local/link-status';
+import { isRunning } from '../local/queries';
 import { initialMockState, MockServer, type MockState } from './mock-server';
 
 function setup(state: Partial<MockState> = {}) {
@@ -352,5 +354,22 @@ describe('목업 서버', () => {
     ).toBe(true);
     expect((await call('DELETE', `/api/v1/me/local-links/${id}`)).status).toBe(204);
     expect((await call('GET', '/api/v1/me/local-links')).body.links).toHaveLength(before);
+  });
+
+  it('내 로컬 연결 예시: 켜진 PC·꺼진 PC, 반영된 연결·고친 파일·승인 대기 연결을 보여준다', async () => {
+    const { call } = setup({ persona: 'member' });
+    const { devices } = (await call('GET', '/api/v1/me/devices')).body;
+    expect(
+      devices.map((device: Parameters<typeof isRunning>[0]) => [device.name, isRunning(device)]),
+    ).toEqual([
+      ['my-macbook', true],
+      ['office-desktop', false],
+    ]);
+    const { links } = (await call('GET', '/api/v1/me/local-links')).body;
+    expect(links.map(linkSummary)).toEqual([
+      'v2 반영됨',
+      expect.stringContaining('직접 고친'),
+      '이 PC에서 승인해야 씁니다',
+    ]);
   });
 });
