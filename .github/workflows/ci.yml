@@ -64,5 +64,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      # docker-compose.yml을 검사용 MySQL과 함께 띄워 마이그레이션·헬스체크·대시보드·API·worker를 본다
+      # docker-compose.yaml을 검사용 MySQL과 함께 띄워 마이그레이션·헬스체크·대시보드·API·worker를 본다
       - run: bash scripts/docker-smoke.sh

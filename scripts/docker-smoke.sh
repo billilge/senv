@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# 배포 이미지 검사: docker-compose.yml을 MySQL과 함께 띄워 api·worker가 실제로 동작하는지 본다.
+# 배포 이미지 검사: docker-compose.yaml을 MySQL과 함께 띄워 api·worker가 실제로 동작하는지 본다.
 # 몇 분 걸려서 pnpm verify에는 넣지 않는다. 사용법: pnpm smoke:docker
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORT="${SMOKE_PORT:-38080}"
 BASE="http://127.0.0.1:${PORT}"
-COMPOSE=(docker compose -p senv-smoke -f docker-compose.yml -f scripts/docker-compose.smoke.yml)
+COMPOSE=(docker compose -p senv-smoke -f docker-compose.yaml -f scripts/docker-compose.smoke.yml)
 
 # 검사용 값. 실제 비밀이 아니며 이 실행에서만 쓴다
 export APP_URL="http://localhost:${PORT}"

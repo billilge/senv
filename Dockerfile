@@ -46,5 +46,5 @@ COPY --from=build /app/apps/dashboard/dist ./apps/dashboard/dist
 WORKDIR /app/apps/server
 USER node
 EXPOSE 3000
-# api: 마이그레이션을 적용한 뒤 시작한다. worker는 docker-compose.yml에서 명령을 바꾼다
+# api: 마이그레이션을 적용한 뒤 시작한다. worker는 docker-compose.yaml에서 명령을 바꾼다
 CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && exec node dist/main.js"]
