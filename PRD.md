@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 문서 상태 | v1.10 (M1 구현 완료·배포 준비, M1.1 계획 확정. 진행 상황은 15장) |
+| 문서 상태 | v1.11 (M1 구현 완료·배포 준비, M1.1 구현 완료. 진행 상황은 15장) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.10: M1.1 로컬 자동 받기(결정 60~64), compose 파일 이름(결정 59) · v1.9: 배포 대상 연동을 M1으로(결정 46), 결정 43~45 기록 · v1.8: M1 범위 조정(결정 39) · v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.11: M1.1 로컬 자동 받기 구현과 세부 결정 68~71, Spring Boot properties 형식(결정 65), senv 플러그인(결정 66·67) · v1.10: M1.1 로컬 자동 받기(결정 60~64), compose 파일 이름(결정 59) · v1.9: 배포 대상 연동을 M1으로(결정 46), 결정 43~45 기록 · v1.8: M1 범위 조정(결정 39) · v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -234,6 +234,8 @@ flowchart LR
 | CI | GitHub Actions | 테스트, CLI를 GitHub Packages로 릴리즈 |
 | 버전 관리 | 손으로 올리고 `cli-v<version>` 태그 (M1) | Changesets는 필요해지면 붙인다 (결정 58) |
 | 이미지 빌드 | `turbo prune @senv/server @senv/dashboard --docker` + 멀티 스테이지 Dockerfile | 서버와 대시보드에 필요한 패키지만 담는다. 대시보드 빌드는 서버 이미지에 함께 들어간다 |
+| 로컬 연결 경로 길이 | 1024자 (계획 문서) | 512자 | (기기, 경로) 유일 인덱스가 MySQL 한도를 넘는다 (결정 68) |
+| 에이전트 API | `GET /agent/links?device=`, 승인·보고 | `/agent/devices/{id}/links`(조회·PC에서 추가), 승인·거절·보고 | 기기를 경로로 지정하고, `senv link add`·`reject`에 필요한 API를 더했다 (결정 68) |
 
 ### 4.3 모노레포 구조
 
@@ -903,6 +905,10 @@ CLI·CI는 `Authorization: Bearer <token>` 헤더를, 대시보드는 세션 쿠
 | GET, POST, PATCH, DELETE | `/targets/connections`, `/targets/mappings` | 배포 대상 연결·매핑 관리 |
 | GET | `/targets/connections/:id/resources` | 제공자의 리소스 목록 (예: Coolify 앱) |
 | POST | `/targets/mappings/:id/sync` | 수동 동기화 |
+| GET, DELETE | `/me/devices` | 내 PC(로컬 자동 받기 기기) 목록·삭제 (M1.1) |
+| GET, POST, PATCH, DELETE | `/me/local-links`, `/me/local-links/:id/overwrite` | 내 로컬 연결 관리, 덮어쓰기 요청 (M1.1) |
+| POST, GET | `/agent/devices`, `/agent/devices/:id/links` | 에이전트: 기기 등록, 연결 조회·PC에서 추가 (CLI 토큰만, M1.1) |
+| POST | `/agent/links/:id/approve`, `/reject`, `/report` | 에이전트: 승인·거절·결과 보고 (CLI 토큰만, M1.1) |
 | GET | `/audit` | 감사 로그 조회 |
 | GET | `/healthz` | DB·R2 연결 확인 (Coolify 헬스체크용, 인증 없음) |
 
@@ -1018,6 +1024,10 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 65 | Spring Boot용 properties 형식 | `senv.json`의 `format`에 `properties`를 더한다. `pull`(과 M1.1 에이전트)은 Java `.properties` 규칙으로 쓰고 `diff`·`push`는 같은 규칙으로 읽는다. Spring이 ISO-8859-1로 읽으므로 ASCII 밖 글자와 제어 문자는 `\uXXXX`로, 값의 맨 앞 공백만 `\ `로 쓰고, 값 안의 `= : # !`는 URL을 읽기 쉽게 그대로 둔다. Spring은 `spring.config.import=optional:file:<output>[.properties]`로 읽고 값은 `${DB_URL}`처럼 참조한다(파일의 키에는 relaxed binding이 적용되지 않는다). Spring은 값의 `${...}`를 다른 속성으로 바꾸므로 그런 값이 있으면 `pull`이 경고한다. `export --format properties`도 더한다 | 6.1, 6.3 |
 | 66 | senv Claude 스킬 배포 | 별도 저장소 `billilge/stream-marketplace`(Claude Code 플러그인 마켓플레이스)에 `senv` 플러그인으로 둔다. 서비스 저장소는 `.claude/settings.json`의 `extraKnownMarketplaces`·`enabledPlugins`로 팀원에게 설치를 권한다. `.env` 읽기 차단(`permissions.deny`)은 플러그인이 줄 수 없어서 서비스 저장소 설정에 함께 넣는다 | 6 |
 | 67 | senv 플러그인 훅 | 플러그인에 PreToolUse 훅을 넣어 `senv.json`이 있는 폴더(또는 그 아래)의 `.env`·`.env.*`와 `senv.json`의 `output`을 Read·Edit·Write·Grep이 가리키면 막는다. Bash는 명령을 `&&`·`||`·`;`·`|`로 나눠 값 파일을 가리키는 부분의 첫 단어가 `senv`·`ls`·`stat`·`test`·`chmod`가 아니면 막는다. `.env.example` 같은 예시 이름은 막지 않고, `senv.json`이 없는 저장소에는 영향이 없다. 셸 해석이 완전하지 않아 서비스 저장소의 `permissions.deny`와 함께 쓴다 | 9.1 |
+| 68 | 로컬 자동 받기 데이터·API | 모델 이름은 CLI 로그인용 `DeviceCode`와 헷갈리지 않게 `AgentDevice`(`agent_devices`)와 `LocalLink`(`local_links`)로 한다. 연결의 소유는 기기의 사용자로 판단하고, 남의 기기·연결은 404로 없는 것처럼 답한다. 경로는 (기기, 경로) 유일 인덱스가 MySQL 한도(3072바이트)를 넘지 않게 512자까지다. 에이전트 API는 `/api/v1/agent/devices/{id}/links`(조회, PC에서 바로 추가)와 `/api/v1/agent/links/{id}/approve·reject·report`이고 `CliTokenOnly`로 Bearer 토큰 요청만 받는다(세션이면 403 `cli_token_required`). 거절은 연결을 지운다. 조회 응답에 프로젝트와 공유 그룹의 현재 local 버전을 붙여 에이전트가 값을 받기 전에 바뀌었는지 안다 | 5, 11 |
+| 69 | 에이전트 동작 | 기기 ID와 연결별 마지막으로 쓴 버전·내용 해시는 CLI 설정 폴더의 `agent.json`(권한 600)에만 둔다. 처음 연결할 때 senv 머리글이 없는 기존 파일은 senv가 만들지 않은 파일로 보고 덮어쓰지 않는다(결정 62). 폴더 경로는 `realpath`로 풀고 상위 폴더의 `senv.json`은 보지 않는다. 상태가 바뀌었거나 새로 썼을 때만 보고해 30초마다 같은 보고를 하지 않는다. 승인 대기 안내는 실행마다 한 번만 한다. 대시보드에서 기기를 지우면 기록을 지우고 다음 주기에 다시 등록한다(연결은 이미 지워져 쓰지 않는다). 서버·네트워크 오류는 다음 주기에 다시 하고, 로그인이 끊기면(401) 멈춘다. 대시보드는 마지막 조회가 90초 안이면 "실행 중"으로 표시한다 | 6.2 |
+| 70 | 에이전트 자동 시작 | macOS는 `~/Library/LaunchAgents/site.billilge.senv.agent.plist`(RunAtLoad, 실패했을 때만 다시 띄움, 60초 간격, 로그 `~/Library/Logs/senv-agent.log`)를 `launchctl bootstrap`으로, Linux는 `~/.config/systemd/user/senv-agent.service`(Restart=on-failure, 60초)를 `systemctl --user enable --now`로 등록한다. 서비스에는 `PATH`(git을 찾는다)와 `SENV_API_URL`만 넘긴다. install은 로그인을 확인하고 기기를 바로 등록하며, uninstall은 서버의 기기(와 연결)와 이 PC의 기록을 지우고 이미 쓴 파일은 남긴다. Windows는 아직 지원하지 않는다(직접 `senv agent` 실행) | 6.2 |
+| 71 | 값 파일 원자적 쓰기 | `pull`과 에이전트 모두 같은 폴더의 임시 파일(권한 600)에 쓴 뒤 이름을 바꾼다. 개발 서버가 반쯤 쓴 파일을 읽지 않고, 출력 자리의 심볼릭 링크가 가리키는 파일을 건드리지 않는다(링크 자리에 파일이 생긴다). 에이전트는 출력이 심볼릭 링크면 아예 쓰지 않는다 | 6.3 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
@@ -1040,22 +1050,22 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 
 ## 15. 구현 현황
 
-기준: 2026-10-08, 브랜치 `main`(GitHub 기본 브랜치, `feat/m1-core`와 같은 내용), 커밋 96개. 모든 커밋은 `pnpm verify`(Biome, 타입 검사, 빌드, 테스트)를 통과한 뒤에 만들었다. M1 범위(결정 39·46으로 늘어난 범위 포함)의 구현은 모두 끝났고, 남은 것은 운영 준비다.
+기준: 2026-10-08, 브랜치 `main`, 커밋 111개. 모든 커밋은 `pnpm verify`(Biome, 타입 검사, 빌드, 테스트)를 통과한 뒤에 만들었다. M1 범위(결정 39·46으로 늘어난 범위 포함)와 M1.1 로컬 자동 받기(결정 60~64, 68~71)의 구현은 모두 끝났고, 남은 것은 운영 준비다.
 
 ### 15.1 테스트
 
 | 패키지 | 테스트 수 | 범위 |
 | --- | --- | --- |
-| `packages/core` | 198 | dotenv, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙, 버전 조사, 배포 대상 계획·반영 후 동작, properties 형식 |
-| `apps/server` | 375 | 단위 + Testcontainers MySQL 통합: 암호화, 게시·버전 기록·되돌리기, 키 스키마, 목록 요약, 인증·역할 미리 지정, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, 배포 이미지 구성, 배포 대상 연결·매핑·동기화·드리프트·가져오기, 작업 큐, worker |
-| `apps/cli` | 120 | 명령별 동작 (가짜 API): login·init·pull·run·list·get·status·diff·set·push·export·doctor, 노출 검사 |
+| `packages/core` | 218 | dotenv, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙, 버전 조사, 배포 대상 계획·반영 후 동작, properties 형식, 로컬 자동 받기 쓰기 판단·경로 검증 |
+| `apps/server` | 395 | 단위 + Testcontainers MySQL 통합: 암호화, 게시·버전 기록·되돌리기, 키 스키마, 목록 요약, 인증·역할 미리 지정, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, 배포 이미지 구성, 배포 대상 연결·매핑·동기화·드리프트·가져오기, 작업 큐, worker, 로컬 연결·에이전트 API(CLI 토큰 전용) |
+| `apps/cli` | 162 | 명령별 동작 (가짜 API): login·init·pull·run·list·get·status·diff·set·push·export·doctor·link, 노출 검사, 값 파일 쓰기, 에이전트 주기·반복·자동 시작(launchd·systemd 파일과 명령) |
 | `packages/api-client` | 9 | 클라이언트 생성, 오류 변환 |
 | `packages/target-testkit` | 9 | 계약 테스트를 메모리 제공자에 적용 |
 | `packages/target-coolify` | 12 | 계약 테스트와 Coolify API 대응 (가짜 Coolify 서버) |
-| `apps/dashboard` | 96 | Testing Library 화면 흐름, 목업 서버 |
-| `e2e` (Vitest) | 1 | 실제 서버 + CLI 전체 흐름 (login → whoami → init → pull → run → logout) |
+| `apps/dashboard` | 103 | Testing Library 화면 흐름(내 로컬 연결 포함), 목업 서버 |
+| `e2e` (Vitest) | 2 | 실제 서버 + CLI 전체 흐름 (login → whoami → init → pull → run → logout), 로컬 자동 받기 (연결 → PC 승인 → 쓰기 → 새 게시 반영 → 직접 고친 파일 보호·덮어쓰기) |
 | `e2e` (Playwright) | 1 | 로컬 Chrome으로 프로젝트 만들기 → 게시 → 버전 기록 → 배포 대상 연결 → 매핑 → 동기화 (`pnpm test:browser`) |
-| 합계 | 821 | |
+| 합계 | 911 | |
 
 R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 테스트하지 않는다. 메모리 저장소, 가짜 GitHub, 가짜 Coolify 서버·메모리 제공자로 대신한다.
 
@@ -1073,6 +1083,8 @@ R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 �
 | CLI | login·logout·whoami·init·pull·run·list·get·status·diff·set·push·export·doctor, 키체인, 토큰 자동 갱신, 노출 검사 |
 | 대시보드 | 로그인, 승인 대기, CLI 로그인 승인, 프로젝트 목록(요약)·만들기, 매트릭스(public 값·필수 누락), 환경별 편집·게시(붙여넣기 삭제 후보, 환경 간 복사), 버전 기록·비교·되돌리기, 키 스키마, 배포(매핑·동기화·기록·드리프트·가져오기), 배포 대상 연결, 사용자 관리·역할 미리 지정, 다크 모드 GitHub 스타일, 목업 모드 |
 | 검사·배포 | GitHub Actions CI(검사, 브라우저 E2E, 이미지 검사), CLI 배포 워크플로 |
+| M1.1 로컬 자동 받기 | 기기·로컬 연결 저장과 API(에이전트 API는 CLI 토큰 전용), `senv agent`(주기·자동 시작 install·uninstall·status), `senv link list·approve·reject·add`, 대시보드 "내 로컬 연결"과 프로젝트 local 열 반영 표시, 목업 모드 |
+| Spring Boot | `senv.json` `format: properties`(pull·diff·push·init·export), README 사용법 |
 
 ### 15.3 M1에서 남은 것
 
@@ -1080,7 +1092,7 @@ R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 �
 
 | 작업 | 상태 |
 | --- | --- |
-| GitHub Actions(CI·이미지 검사) 통과 확인. main의 첫 실행은 대시보드 테스트 하나가 느린 러너에서 `findBy` 기본 대기 시간(1초)을 넘겨 실패했다(로컬보다 약 3배 느림). 대기 시간을 5초로 늘렸다. 이어서 이미지 검사가 api 기동 실패를 잡았다: 배포 대상 연동 때 서버 의존성에 `@senv/target-coolify`가 늘었는데 Dockerfile 실행 단계가 그 `dist`를 복사하지 않았다(로컬 `smoke:docker`는 외부 접속을 피하려고 그 뒤로 돌리지 않았다). 복사 줄을 넣고, 서버 운영 의존성과 Dockerfile의 복사 줄을 대조하는 단위 테스트(`src/app/docker-image.test.ts`)를 더했다. push 후 다시 확인한다 | 확인 필요 |
+| GitHub Actions(CI·브라우저 E2E·이미지 검사) 통과 확인. main의 첫 실행에서 대시보드 테스트 대기 시간(느린 러너)과 Dockerfile의 `target-coolify` 빌드 결과 누락을 잡아 고쳤고(서버 운영 의존성과 Dockerfile 복사 줄을 대조하는 단위 테스트를 더함), 그 뒤로 통과한다. CLI 0.1.0을 GitHub Packages에 배포했다 | 완료 (2026-10-08) |
 | 운영 중인 Coolify 버전에서 env API 필드 이름(`is_buildtime` 등)과 재배포 API가 결정 51과 같은지 확인 (14.1) | 확인 필요 |
 | 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관, Coolify API 토큰) | 담당자 작업 |
 
