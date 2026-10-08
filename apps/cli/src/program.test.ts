@@ -35,7 +35,7 @@ describe('senv 명령줄', () => {
   it('--version은 버전을 보여주고 0으로 끝난다', async () => {
     const { exec, stdout } = await setup();
     expect(await exec('--version')).toBe(0);
-    expect(stdout.join('')).toContain('0.1.0');
+    expect(stdout.join('')).toContain('0.2.0');
   });
 
   it('pull --env --output이 명령에 그대로 전달된다', async () => {

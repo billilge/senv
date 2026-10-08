@@ -1,6 +1,6 @@
 {
   "name": "@billilge/senv",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Stream Env Control CLI: 환경변수를 받아 쓰고 실행한다",
   "repository": {
     "type": "git",

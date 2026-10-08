@@ -18,7 +18,7 @@ import { push, set } from './commands/write.js';
 import { ENV_FILE_FORMATS, type EnvFileFormat } from './config/project-config.js';
 import type { CliContext } from './context.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 export const DEFAULT_API_URL = 'https://senv.stream.billilge.site';
 
 export interface MainOptions {
