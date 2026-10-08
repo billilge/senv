@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 문서 상태 | v1.12 (M1 구현 완료·배포 준비, M1.1 구현 완료. 진행 상황은 15장) |
+| 문서 상태 | v1.13 (M1 구현 완료·배포 준비, M1.1 구현 완료, M1.2 계획 확정. 진행 상황은 15장) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.12: 사용 가이드 페이지(결정 72) · v1.11: M1.1 로컬 자동 받기 구현과 세부 결정 68~71, Spring Boot properties 형식(결정 65), senv 플러그인(결정 66·67) · v1.10: M1.1 로컬 자동 받기(결정 60~64), compose 파일 이름(결정 59) · v1.9: 배포 대상 연동을 M1으로(결정 46), 결정 43~45 기록 · v1.8: M1 범위 조정(결정 39) · v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.13: M1.2 `.env.example` 연결 계획(결정 73~77) · v1.12: 사용 가이드 페이지(결정 72) · v1.11: M1.1 로컬 자동 받기 구현과 세부 결정 68~71, Spring Boot properties 형식(결정 65), senv 플러그인(결정 66·67) · v1.10: M1.1 로컬 자동 받기(결정 60~64), compose 파일 이름(결정 59) · v1.9: 배포 대상 연동을 M1으로(결정 46), 결정 43~45 기록 · v1.8: M1 범위 조정(결정 39) · v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -577,6 +577,7 @@ stream-env-backups/                           # R2 버킷 (Coolify 예약 백업
 | 편집·게시 | 셀 편집, `.env` 붙여넣기 일괄 입력, diff 확인 후 메시지와 함께 게시 | M1 |
 | 버전 기록 | 버전 목록, 두 버전 비교, 롤백 | M1 |
 | 키 스키마 | 키별 타입·필수·visibility·buildTime·설명 관리 | M1 |
+| `.env.example` 연결 | 키 스키마 탭에서 프로젝트에 GitHub 저장소의 예시 파일을 연결한다. 기본 브랜치에 푸시되면 새 키를 키 스키마에 등록하고, 마지막 확인 결과(등록한 키, 빠진 키)와 "지금 확인"을 보여준다 (결정 73~76) | M1.2 |
 | 내 로컬 연결 | 내 기기, 로컬 연결(프로젝트·폴더 경로) 추가·승인 상태, 반영 버전, 덮어쓰기·일시정지 (결정 60~62) | M1.1 |
 | 가이드 | 설치부터 문제 해결까지 senv 사용법, 명령 복사 (결정 72) | M1.1 |
 | 멤버·권한 | 프로젝트 × 환경 단위 권한, 만료일, 비활성화 | M2 |
@@ -910,6 +911,10 @@ CLI·CI는 `Authorization: Bearer <token>` 헤더를, 대시보드는 세션 쿠
 | GET, POST, PATCH, DELETE | `/me/local-links`, `/me/local-links/:id/overwrite` | 내 로컬 연결 관리, 덮어쓰기 요청 (M1.1) |
 | POST, GET | `/agent/devices`, `/agent/devices/:id/links` | 에이전트: 기기 등록, 연결 조회·PC에서 추가 (CLI 토큰만, M1.1) |
 | POST | `/agent/links/:id/approve`, `/reject`, `/report` | 에이전트: 승인·거절·결과 보고 (CLI 토큰만, M1.1) |
+| GET, PUT, DELETE | `/projects/:project/example-source` | `.env.example` 연결 조회·연결·끊기 (M1.2) |
+| POST | `/projects/:project/example-source/check` | `.env.example` 지금 확인 (M1.2) |
+| GET | `/github/repositories` | GitHub App이 설치된 저장소 목록 (관리자, M1.2) |
+| POST | `/github/webhook` | GitHub App 웹훅. 서명으로 확인하고 기본 브랜치 `push`만 처리 (M1.2) |
 | GET | `/audit` | 감사 로그 조회 |
 | GET | `/healthz` | DB·R2 연결 확인 (Coolify 헬스체크용, 인증 없음) |
 
@@ -921,6 +926,7 @@ CLI·CI는 `Authorization: Bearer <token>` 헤더를, 대시보드는 세션 쿠
 | --- | --- | --- |
 | **M1 MVP** | 모노레포 골격, Coolify에 `api`·`worker` 배포, 기존 MySQL에 `stream_env` 연결, R2 연결, GitHub 로그인(org 멤버십 확인, 역할 미리 지정), 프로젝트·환경·변수 편집(매트릭스, 게시, 환경 간 복사, `.env` 붙여넣기), 프로젝트 목록 요약, 버전 스냅샷, 버전 기록·비교·롤백, 키 스키마·검증(클라이언트 노출 검사 포함), 봉투 암호화, CLI `login`·`init`·`pull`·`run`·`list`·`get`·`status`·`diff`·`set`·`push`·`export`·`doctor`, 배포 대상 연동(8장 전체: 제공자 인터페이스와 `target-testkit`, Coolify 제공자, 연결·매핑, 초기 가져오기, diff 미리보기, 게시 시 자동 동기화, 재시작·재배포, 드리프트 감지) | 팀 전원이 development 값을 `senv`로 받아 쓰고, Coolify 앱이 대시보드 값과 일치한다 |
 | **M1.1 로컬 자동 받기** | 기기·로컬 연결 API, `senv agent`(자동 시작 등록, PC 승인, `senv link`), 대시보드 "내 로컬 연결" (결정 60~64, `docs/plans/local-auto-pull.md`) | 팀원이 `senv agent`를 켜 두면 local 게시가 30초 안에 각자의 `.env.local`에 반영된다 |
+| **M1.2 `.env.example` 연결** | GitHub App(내용 읽기·push 웹훅), 프로젝트별 예시 파일 연결, 새 키를 키 스키마에 선택 키로 등록, 매트릭스·목록 요약에 모든 스키마 키 표시, 대시보드 연결 상자 (결정 73~77, `docs/plans/env-example-sync.md`) | 서비스 저장소의 `.env.example`에 키를 더해 main에 병합하면, 매트릭스에 그 키가 빈 칸으로 나타난다 |
 | **M2 운영 안전장치** | 프로젝트 × 환경 권한, GitHub org 멤버십 매일 재확인, 감사 로그, 서비스 토큰, 개인 덮어쓰기 파일 | development·production 값 이관 완료, Slack·Notion 사본 삭제 |
 | **M3 배포 대상 연동** | M1으로 옮겼다 (결정 46) | - |
 | **M4 확장** | production 변경 2인 승인, GitHub org 웹훅으로 즉시 권한 회수, GitHub 팀 → 역할 템플릿 매핑, Slack 알림, Coolify Service 지원, 다른 배포 대상 제공자(AWS 등), 시크릿 교체 알림, 오프라인 캐시, `senv sync` | 항목별로 따로 결정 |
@@ -1030,6 +1036,11 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 70 | 에이전트 자동 시작 | macOS는 `~/Library/LaunchAgents/site.billilge.senv.agent.plist`(RunAtLoad, 실패했을 때만 다시 띄움, 60초 간격, 로그 `~/Library/Logs/senv-agent.log`)를 `launchctl bootstrap`으로, Linux는 `~/.config/systemd/user/senv-agent.service`(Restart=on-failure, 60초)를 `systemctl --user enable --now`로 등록한다. 서비스에는 `PATH`(git을 찾는다)와 `SENV_API_URL`만 넘긴다. install은 로그인을 확인하고 기기를 바로 등록하며, uninstall은 서버의 기기(와 연결)와 이 PC의 기록을 지우고 이미 쓴 파일은 남긴다. Windows는 아직 지원하지 않는다(직접 `senv agent` 실행) | 6.2 |
 | 71 | 값 파일 원자적 쓰기 | `pull`과 에이전트 모두 같은 폴더의 임시 파일(권한 600)에 쓴 뒤 이름을 바꾼다. 개발 서버가 반쯤 쓴 파일을 읽지 않고, 출력 자리의 심볼릭 링크가 가리키는 파일을 건드리지 않는다(링크 자리에 파일이 생긴다). 에이전트는 출력이 심볼릭 링크면 아예 쓰지 않는다 | 6.3 |
 | 72 | 사용 가이드 | 대시보드 상단 탭 "가이드"(`/guide`)에 senv 사용법을 둔다: senv란, 설치(GitHub Packages 토큰·`.npmrc`), 로그인, 프로젝트 연결, 값 받아 쓰기, 값 바꾸기, 키 스키마와 노출 검사, 공유 그룹, 프레임워크별(Vite·Expo·Spring Boot), 로컬 자동 받기, 배포 서버 자동 반영, Claude Code, 문제 해결, 지켜 주세요. 명령마다 복사 버튼을 단다. 내부 레지스트리·조직 정보가 있어 로그인한 활성 사용자만 본다. 내용은 실제 CLI 도움말과 화면 기준으로 쓰고, 명령이 바뀌면 함께 고친다 | 7.1 |
+| 73 | `.env.example` 감지 방식 | 프로젝트에 GitHub 저장소의 예시 파일(경로 자유, 기본 `.env.example`)을 하나 연결하고, 로그인용 OAuth App과 별도인 GitHub App(Contents·Metadata 읽기 전용, push 이벤트)의 웹훅으로 기본 브랜치 푸시를 감지해 서버가 파일을 읽는다. 웹훅은 신호로만 쓰고 언제나 기본 브랜치의 지금 파일을 웹훅 요청 안에서 바로 읽는다(작업 큐 없음, 놓치면 다음 푸시나 "지금 확인"이 따라잡는다). 저장소는 숫자 id로 찾고, 공유 그룹은 연결하지 않는다. `GITHUB_APP_ID`·`GITHUB_APP_PRIVATE_KEY`·`GITHUB_APP_WEBHOOK_SECRET`이 모두 있을 때만 켜진다. CLI·에이전트 감지와 PAT 주기 확인은 고르지 않았다. 계획: `docs/plans/env-example-sync.md` | 4.5, 7.1, 11 |
+| 74 | `.env.example` 등록 규칙 | 키 이름과 설명(바로 위 주석, 없으면 같은 줄 주석)만 읽고 값은 파서에서 버린다. 키 스키마에 없는 키만 선택·`string`·빌드 시점 아님으로 등록하고, 공개 접두사로 시작하면 public, 아니면 secret이다. 이미 있는 키의 속성은 바꾸지 않는다. 예시에서 빠진 키는 지우지 않고 알리기만 한다. 이름 규칙에 맞지 않는 줄은 건너뛰고 알린다 | 5.2 |
+| 75 | 매트릭스의 스키마 키 | 값이 없어도 스키마의 모든 키(필수가 아닌 키 포함)를 매트릭스 행으로 보인다. 빈 칸은 지금처럼 필수면 빨간 "누락", 아니면 노란 "누락"이다. 프로젝트 목록의 누락 칸 수(결정 44)도 같은 기준으로 센다 | 7.1 |
+| 76 | `.env.example` 연결 권한·보안 | 연결 만들기·바꾸기·끊기는 관리자, 상태 보기·지금 확인은 활성 멤버다. 웹훅(`/api/v1/github/webhook`)은 인증 대신 `X-Hub-Signature-256`을 시간 일정 비교로 확인하고(틀리면 401), 웹훅 경로만 본문을 5MB까지 받는다. 예시 파일은 64KB까지 읽는다. App 개인 키는 `api`에만 둔다. 웹훅으로 등록한 키의 `updated_by`는 `github:<푸시한 사람>`이다 | 9.1 |
+| 77 | `.env.example` 연결 단계 | M1.1 다음, M2 앞의 M1.2로 진행한다 | 12 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
