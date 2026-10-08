@@ -6,6 +6,8 @@ import { isValidKeyName } from '../schema';
 const DESCRIPTION_LIMIT = 500;
 
 const ASSIGNMENT = /^(?:export\s+)?([^=]*)=(.*)$/;
+/** 같은 글자(─, -, =, * 따위)가 네 개 이상 이어지면 구역을 나누는 줄로 본다 (예: `# ── 서버 ───`) */
+const DIVIDER = /([─━=\-*~#_])\1{3,}/;
 
 export interface ExampleEntry {
   key: string;
@@ -47,7 +49,8 @@ export function parseEnvExample(text: string): ParsedExample {
   for (let index = 0; index < lines.length; index++) {
     const line = (lines[index] ?? '').trim();
     if (line.startsWith('#')) {
-      comments.push(stripComment(line));
+      const comment = stripComment(line);
+      if (!DIVIDER.test(comment)) comments.push(comment);
       continue;
     }
     // 빈 줄이나 다른 줄이 끼면 위 주석은 이 키의 설명이 아니다

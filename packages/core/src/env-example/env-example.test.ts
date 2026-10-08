@@ -32,6 +32,23 @@ describe('parseEnvExample', () => {
     ]);
   });
 
+  it('구분선이 든 주석 줄(─, -, =, * 따위가 세 개 넘게 이어짐)은 설명에 넣지 않는다', () => {
+    const text = [
+      '# ── 서버 ─────────',
+      '# 비우면 3000',
+      'PORT=3000',
+      '# ===== Database =====',
+      'DATABASE_URL=',
+      '# a-b-c 같은 글은 그대로 둔다',
+      'NAME=',
+    ].join('\n');
+    expect(parseEnvExample(text).entries).toEqual([
+      { key: 'PORT', description: '비우면 3000' },
+      { key: 'DATABASE_URL', description: '' },
+      { key: 'NAME', description: 'a-b-c 같은 글은 그대로 둔다' },
+    ]);
+  });
+
   it('위에 주석이 없으면 같은 줄 뒤의 주석을 설명으로 쓴다', () => {
     const text = ['PORT=3000 # 서버 포트', 'NAME="a # b" # 앱 이름', 'HASH=a#b'].join('\n');
     expect(parseEnvExample(text).entries).toEqual([
