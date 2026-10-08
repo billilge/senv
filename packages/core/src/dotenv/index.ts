@@ -1,3 +1,5 @@
+import { findClosingQuote } from './quotes';
+
 export class DotenvParseError extends Error {
   constructor(
     message: string,
@@ -101,18 +103,6 @@ export function serializeDotenv(
 function readUnquoted(rest: string): string {
   const commentAt = rest.search(/\s#/);
   return (commentAt === -1 ? rest : rest.slice(0, commentAt)).trim();
-}
-
-function findClosingQuote(text: string, quote: '"' | "'"): number {
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (quote === '"' && char === '\\') {
-      i++; // 이스케이프된 다음 글자는 닫는 따옴표가 아니다
-      continue;
-    }
-    if (char === quote) return i;
-  }
-  return -1;
 }
 
 function unescapeDoubleQuoted(content: string): string {
