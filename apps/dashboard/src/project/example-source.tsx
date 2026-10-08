@@ -181,7 +181,7 @@ function KeyNames({ title, keys }: { title: string; keys: string[] }) {
     <Stack direction="horizontal" gap="condensed" align="center" wrap="wrap">
       <span className={table.muted}>{title}</span>
       {keys.map((key) => (
-        <code key={key} className={table.key}>
+        <code key={key} className={table.mono}>
           {key}
         </code>
       ))}

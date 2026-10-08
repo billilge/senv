@@ -233,6 +233,41 @@ const SECTIONS: Section[] = [
     ),
   },
   {
+    id: 'example',
+    title: '.env.example 연결',
+    body: (
+      <>
+        <p>
+          관리자가 키 스키마 탭에서 프로젝트에 GitHub 저장소의 <C>.env.example</C>을 연결해 두면,
+          기본 브랜치에 새 키가 들어올 때마다 키 스키마에 선택 키로 등록합니다. 키 이름과 설명만
+          읽고 값은 가져오지 않으니, 예시 파일에는 자리 표시만 두세요.
+        </p>
+        <Command label=".env.example 예시">
+          {'# 캐시용 Redis (로컬은 docker compose로 띄운다)\nREDIS_URL=\nVITE_SENTRY_DSN='}
+        </Command>
+        <ul>
+          <li>키 바로 위의 주석이 설명이 됩니다. 이미 senv에 있는 키는 그대로 둡니다.</li>
+          <li>
+            공개 접두사(예: <C>VITE_</C>)로 시작하는 키는 public으로, 나머지는 secret으로
+            등록합니다.
+          </li>
+          <li>
+            새 키는 매트릭스에 모든 환경이 <strong>누락</strong>으로 보입니다. 값을 채우고, 꼭
+            있어야 하는 값이면 키 스키마에서 필수로 바꾸세요.
+          </li>
+          <li>
+            예시에서 키를 지워도 senv에서는 지우지 않습니다. 연결 상자의 "예시에서 빠진 키"를 보고
+            필요 없으면 키 스키마에서 지우세요.
+          </li>
+          <li>
+            바로 반영하고 싶거나 푸시가 반영되지 않았으면 "지금 확인"을 누릅니다. 저장소가 목록에
+            없으면 관리자에게 그 저장소에 senv GitHub App을 설치해 달라고 하세요.
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
     id: 'shared',
     title: '공유 그룹',
     body: (

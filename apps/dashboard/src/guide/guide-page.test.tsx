@@ -37,6 +37,14 @@ describe('senv 사용 가이드', () => {
     expect(await screen.findByRole('button', { name: '복사했습니다' })).toBeInTheDocument();
   });
 
+  it('.env.example 연결을 안내한다 (결정 73~76)', async () => {
+    renderApp('/guide', server());
+    const heading = await screen.findByRole('heading', { name: '.env.example 연결', level: 3 });
+    const section = within(heading.closest('section') as HTMLElement);
+    expect(section.getByText(/선택 키로 등록/)).toBeInTheDocument();
+    expect(section.getByText(/값은 가져오지 않/)).toBeInTheDocument();
+  });
+
   it.each([
     'senv login',
     'senv init',
