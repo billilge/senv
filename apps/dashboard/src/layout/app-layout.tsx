@@ -1,4 +1,4 @@
-import { KeyIcon, PeopleIcon, RepoIcon, ServerIcon } from '@primer/octicons-react';
+import { BookIcon, KeyIcon, PeopleIcon, RepoIcon, ServerIcon } from '@primer/octicons-react';
 import { ActionList, ActionMenu, Avatar, Spinner, Text, UnderlineNav } from '@primer/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
@@ -113,6 +113,14 @@ function TopBar({ me, showNav }: { me: User; showNav: boolean }) {
               배포 대상
             </UnderlineNav.Item>
           )}
+          <UnderlineNav.Item
+            as={Link}
+            to="/guide"
+            icon={BookIcon}
+            aria-current={pathname.startsWith('/guide') ? 'page' : undefined}
+          >
+            가이드
+          </UnderlineNav.Item>
         </UnderlineNav>
       )}
     </header>

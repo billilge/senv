@@ -6,6 +6,7 @@ import {
   Outlet,
   type RouterHistory,
 } from '@tanstack/react-router';
+import { GuidePage } from './guide/guide-page';
 import { AppLayout } from './layout/app-layout';
 import { DevicePage } from './pages/device-page';
 import { LocalLinksPage } from './pages/local-links-page';
@@ -90,6 +91,11 @@ const deviceRoute = createRoute({
     return <DevicePage code={code} />;
   },
 });
+const guideRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/guide',
+  component: GuidePage,
+});
 const localLinksRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/me/local',
@@ -113,6 +119,7 @@ const routeTree = rootRoute.addChildren([
     deviceRoute,
     usersRoute,
     localLinksRoute,
+    guideRoute,
   ]),
 ]);
 
