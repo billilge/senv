@@ -1,6 +1,7 @@
 export * from './diff';
 export * from './dotenv';
 export * from './exposure';
+export * from './local-links';
 export * from './naming';
 export * from './properties';
 export * from './references';
