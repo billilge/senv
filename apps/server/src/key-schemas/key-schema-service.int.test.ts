@@ -117,5 +117,55 @@ describe('KeySchemaService', () => {
   it('없는 프로젝트면 ProjectNotFoundError다', async () => {
     await expect(service.get('ghost')).rejects.toThrow(ProjectNotFoundError);
     await expect(service.put('ghost', 'A', {}, 'u1')).rejects.toThrow(ProjectNotFoundError);
+    await expect(service.addMissing('ghost', [], 'u1')).rejects.toThrow(ProjectNotFoundError);
+  });
+});
+
+describe('KeySchemaService.addMissing (.env.example 등록, 결정 74)', () => {
+  it('없는 키만 등록하고 새로 등록한 키 이름을 돌려준다. 이미 있는 키의 속성은 그대로다', async () => {
+    await service.put('web', 'API_URL', { type: 'url', required: true, description: '원래' }, 'u1');
+
+    const added = await service.addMissing(
+      'web',
+      [
+        { key: 'API_URL', visibility: 'secret', description: '예시의 설명' },
+        { key: 'VITE_DSN', visibility: 'public', description: 'Sentry' },
+        { key: 'REDIS_URL', visibility: 'secret', description: '' },
+      ],
+      'github:alice',
+    );
+
+    expect(added).toEqual(['REDIS_URL', 'VITE_DSN']);
+    expect((await service.get('web')).keys).toEqual([
+      expect.objectContaining({ key: 'API_URL', type: 'url', required: true, description: '원래' }),
+      {
+        key: 'REDIS_URL',
+        type: 'string',
+        visibility: 'secret',
+        required: false,
+        optionalIn: [],
+        buildTime: false,
+        description: '',
+      },
+      expect.objectContaining({ key: 'VITE_DSN', visibility: 'public', description: 'Sentry' }),
+    ]);
+    const row = await prisma.keySchema.findFirstOrThrow({ where: { key: 'REDIS_URL' } });
+    expect(row).toMatchObject({ updatedBy: 'github:alice', updatedAt: NOW });
+  });
+
+  it('동시에 같은 키를 등록해도 한 번만 들어간다', async () => {
+    const keys = [{ key: 'A', visibility: 'secret' as const, description: '' }];
+    await Promise.all([
+      service.addMissing('web', keys, 'u1'),
+      service.addMissing('web', keys, 'u2'),
+    ]);
+    expect((await service.get('web')).keys.map((entry) => entry.key)).toEqual(['A']);
+  });
+
+  it('키 이름이 규칙에 맞지 않으면 아무것도 등록하지 않는다', async () => {
+    await expect(
+      service.addMissing('web', [{ key: 'bad', visibility: 'secret', description: '' }], 'u1'),
+    ).rejects.toThrow(InvalidKeyNameError);
+    expect((await service.get('web')).keys).toEqual([]);
   });
 });

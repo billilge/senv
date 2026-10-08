@@ -1,6 +1,7 @@
 import {
   ENVIRONMENT_NAMES,
   type EnvironmentName,
+  type ExampleKeyToRegister,
   isEnvironmentName,
   isValidKeyName,
   isValidPublicPrefix,
@@ -125,6 +126,40 @@ export class KeySchemaService {
       select: KEY_FIELDS,
     });
     return toView(row);
+  }
+
+  /**
+   * 스키마에 없는 키만 등록하고 새로 등록한 키 이름을 돌려준다 (.env.example, 결정 74).
+   * 이미 있는 키의 속성은 바꾸지 않고, 주지 않은 속성은 기본값(선택, string, 빌드 시점 아님)이다.
+   */
+  async addMissing(
+    project: string,
+    keys: ExampleKeyToRegister[],
+    actor: string,
+  ): Promise<string[]> {
+    const invalid = keys.find((entry) => !isValidKeyName(entry.key));
+    if (invalid) throw new InvalidKeyNameError(invalid.key);
+    const projectId = await this.projectId(project);
+    const existing = await this.prisma.keySchema.findMany({
+      where: { projectId, key: { in: keys.map((entry) => entry.key) } },
+      select: { key: true },
+    });
+    const known = new Set(existing.map((row) => row.key));
+    const missing = keys.filter((entry) => !known.has(entry.key));
+    if (missing.length === 0) return [];
+    // 같은 키를 동시에 등록하면 유일 키에 걸린 쪽은 건너뛴다
+    await this.prisma.keySchema.createMany({
+      data: missing.map(({ key, visibility, description }) => ({
+        projectId,
+        key,
+        visibility,
+        description: description.trim(),
+        updatedAt: this.now(),
+        updatedBy: actor,
+      })),
+      skipDuplicates: true,
+    });
+    return missing.map((entry) => entry.key).sort();
   }
 
   async remove(project: string, key: string): Promise<void> {
