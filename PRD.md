@@ -1017,6 +1017,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 64 | 로컬 자동 받기 단계 | M1 배포가 안정된 뒤 M2 전에 M1.1로 진행한다 | 12 |
 | 65 | Spring Boot용 properties 형식 | `senv.json`의 `format`에 `properties`를 더한다. `pull`(과 M1.1 에이전트)은 Java `.properties` 규칙으로 쓰고 `diff`·`push`는 같은 규칙으로 읽는다. Spring이 ISO-8859-1로 읽으므로 ASCII 밖 글자와 제어 문자는 `\uXXXX`로, 값의 맨 앞 공백만 `\ `로 쓰고, 값 안의 `= : # !`는 URL을 읽기 쉽게 그대로 둔다. Spring은 `spring.config.import=optional:file:<output>[.properties]`로 읽고 값은 `${DB_URL}`처럼 참조한다(파일의 키에는 relaxed binding이 적용되지 않는다). Spring은 값의 `${...}`를 다른 속성으로 바꾸므로 그런 값이 있으면 `pull`이 경고한다. `export --format properties`도 더한다 | 6.1, 6.3 |
 | 66 | senv Claude 스킬 배포 | 별도 저장소 `billilge/stream-marketplace`(Claude Code 플러그인 마켓플레이스)에 `senv` 플러그인으로 둔다. 서비스 저장소는 `.claude/settings.json`의 `extraKnownMarketplaces`·`enabledPlugins`로 팀원에게 설치를 권한다. `.env` 읽기 차단(`permissions.deny`)은 플러그인이 줄 수 없어서 서비스 저장소 설정에 함께 넣는다 | 6 |
+| 67 | senv 플러그인 훅 | 플러그인에 PreToolUse 훅을 넣어 `senv.json`이 있는 폴더(또는 그 아래)의 `.env`·`.env.*`와 `senv.json`의 `output`을 Read·Edit·Write·Grep이 가리키면 막는다. Bash는 명령을 `&&`·`||`·`;`·`|`로 나눠 값 파일을 가리키는 부분의 첫 단어가 `senv`·`ls`·`stat`·`test`·`chmod`가 아니면 막는다. `.env.example` 같은 예시 이름은 막지 않고, `senv.json`이 없는 저장소에는 영향이 없다. 셸 해석이 완전하지 않아 서비스 저장소의 `permissions.deny`와 함께 쓴다 | 9.1 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
