@@ -524,6 +524,8 @@ stream-env-backups/                           # R2 버킷 (Coolify 예약 백업
 }
 ```
 
+`format`은 `dotenv`(기본) 또는 `properties`(Spring Boot용, 결정 65)다. `output`을 비우면 `dotenv`는 `.env.local`, `properties`는 `.env.local.properties`에 쓴다.
+
 ### 6.2 명령어
 
 | 명령 | 동작 | 단계 |
@@ -1043,16 +1045,16 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 
 | 패키지 | 테스트 수 | 범위 |
 | --- | --- | --- |
-| `packages/core` | 172 | dotenv, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙, 버전 조사, 배포 대상 계획·반영 후 동작 |
+| `packages/core` | 198 | dotenv, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙, 버전 조사, 배포 대상 계획·반영 후 동작, properties 형식 |
 | `apps/server` | 375 | 단위 + Testcontainers MySQL 통합: 암호화, 게시·버전 기록·되돌리기, 키 스키마, 목록 요약, 인증·역할 미리 지정, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, 배포 이미지 구성, 배포 대상 연결·매핑·동기화·드리프트·가져오기, 작업 큐, worker |
-| `apps/cli` | 112 | 명령별 동작 (가짜 API): login·init·pull·run·list·get·status·diff·set·push·export·doctor, 노출 검사 |
+| `apps/cli` | 120 | 명령별 동작 (가짜 API): login·init·pull·run·list·get·status·diff·set·push·export·doctor, 노출 검사 |
 | `packages/api-client` | 9 | 클라이언트 생성, 오류 변환 |
 | `packages/target-testkit` | 9 | 계약 테스트를 메모리 제공자에 적용 |
 | `packages/target-coolify` | 12 | 계약 테스트와 Coolify API 대응 (가짜 Coolify 서버) |
 | `apps/dashboard` | 96 | Testing Library 화면 흐름, 목업 서버 |
 | `e2e` (Vitest) | 1 | 실제 서버 + CLI 전체 흐름 (login → whoami → init → pull → run → logout) |
 | `e2e` (Playwright) | 1 | 로컬 Chrome으로 프로젝트 만들기 → 게시 → 버전 기록 → 배포 대상 연결 → 매핑 → 동기화 (`pnpm test:browser`) |
-| 합계 | 787 | |
+| 합계 | 821 | |
 
 R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 테스트하지 않는다. 메모리 저장소, 가짜 GitHub, 가짜 Coolify 서버·메모리 제공자로 대신한다.
 

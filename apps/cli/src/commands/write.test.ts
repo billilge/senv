@@ -143,3 +143,21 @@ describe('senv push', () => {
     expect(postBody(api)).toEqual({ baseVersion: 3, changes: { remove: ['GONE'] } });
   });
 });
+
+describe('senv push (properties 형식)', () => {
+  it('properties 규칙으로 읽어 달라진 키만 보낸다', async () => {
+    const root = await webRepo({ project: 'web', format: 'properties' });
+    await writeFile(join(root, '.env.local.properties'), 'A=a\\=b\nGREETING=\\uC548\\uB155\n');
+    const api = new FakeApi()
+      .reply(
+        'GET',
+        '/api/v1/projects/web/envs/local/variables',
+        delivered('local', { A: 'a=b', GREETING: 'hi' }),
+      )
+      .reply('POST', '/api/v1/projects/web/envs/local/versions', published(4));
+    const { context } = await setup(api, root);
+
+    await push(context, { yes: true });
+    expect(postBody(api)).toEqual({ baseVersion: 3, changes: { set: { GREETING: '안녕' } } });
+  });
+});

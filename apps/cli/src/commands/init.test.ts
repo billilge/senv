@@ -63,6 +63,24 @@ describe('senv init', () => {
     expect(await readConfig(cwd)).toMatchObject({ defaultEnv: 'development', output: '.env' });
   });
 
+  it('--format properties면 형식을 저장하고 기본 출력 파일을 .env.local.properties로 한다', async () => {
+    const api = new FakeApi().reply('GET', '/api/v1/projects/web', {
+      status: 200,
+      body: project('web'),
+    });
+    const { context, cwd } = await setup(api);
+
+    await init(context, { project: 'web', format: 'properties' });
+
+    expect(await readConfig(cwd)).toEqual({
+      project: 'web',
+      defaultEnv: 'local',
+      output: '.env.local.properties',
+      format: 'properties',
+    });
+    expect(await isGitIgnored(cwd, '.env.local.properties')).toBe(true);
+  });
+
   it('프로젝트를 주지 않으면 서버의 프로젝트 목록(공유 그룹 포함)에서 고르게 한다', async () => {
     const api = new FakeApi()
       .reply('GET', '/api/v1/projects', {

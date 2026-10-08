@@ -11,6 +11,7 @@ import { get, list } from './commands/inspect.js';
 import { pull } from './commands/pull.js';
 import { run } from './commands/run.js';
 import { push, set } from './commands/write.js';
+import { ENV_FILE_FORMATS, type EnvFileFormat } from './config/project-config.js';
 import type { CliContext } from './context.js';
 
 export const VERSION = '0.1.0';
@@ -82,10 +83,24 @@ export async function main(argv: string[], options: MainOptions): Promise<number
     .description('senv.json을 만들고 출력 파일을 .gitignore에 넣는다')
     .option('--project <name>', '프로젝트 이름 (없으면 목록에서 고른다)')
     .addOption(envOption())
-    .option('--output <path>', '값을 쓸 파일 (기본: .env.local)')
+    .option(
+      '--output <path>',
+      '값을 쓸 파일 (기본: dotenv는 .env.local, properties는 .env.local.properties)',
+    )
+    .addOption(
+      new Option('--format <format>', '값 파일 형식 (properties는 Spring Boot용)')
+        .choices(ENV_FILE_FORMATS)
+        .default('dotenv'),
+    )
     .option('--force', '이미 있는 senv.json을 덮어쓴다')
-    .action((opts: { project?: string; env?: EnvironmentName; output?: string; force?: boolean }) =>
-      withContext(async (ctx) => init(ctx, opts).then(() => 0)),
+    .action(
+      (opts: {
+        project?: string;
+        env?: EnvironmentName;
+        output?: string;
+        format: EnvFileFormat;
+        force?: boolean;
+      }) => withContext(async (ctx) => init(ctx, opts).then(() => 0)),
     );
 
   program

@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { diffVariables, type EnvironmentName, parseDotenv } from '@senv/core';
+import { diffVariables, type EnvironmentName } from '@senv/core';
 import type { CliContext } from '../context.js';
+import { parseEnvFile } from '../files/env-file.js';
 import { getDelivered, resolveTarget, type Target } from './target.js';
 
 /** pull이 파일 첫 줄에 쓰는 머리글 (예: `# senv: web/local v3 (shared v1)`) */
@@ -57,7 +58,7 @@ export async function diff(context: CliContext, options: CompareOptions = {}): P
   if (text === null) throw new LocalFileNotFoundError(file);
   const remote = await getDelivered(context, target);
 
-  const result = diffVariables(parseDotenv(text), remote.variables);
+  const result = diffVariables(parseEnvFile(target.config.format, text), remote.variables);
   const lines = [
     ...result.added.map((key) => `+ ${key}`),
     ...result.removed.map((key) => `- ${key}`),

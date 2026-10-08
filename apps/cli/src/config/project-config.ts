@@ -10,13 +10,23 @@ import { z } from 'zod';
 
 export const CONFIG_FILE = 'senv.json';
 
+/** pull이 쓰는 파일 형식. properties는 Spring Boot용이다 (PRD 결정 65) */
+export const ENV_FILE_FORMATS = ['dotenv', 'properties'] as const;
+export type EnvFileFormat = (typeof ENV_FILE_FORMATS)[number];
+
+/** output을 주지 않았을 때 형식별 기본 파일 */
+export const DEFAULT_OUTPUT: Record<EnvFileFormat, string> = {
+  dotenv: '.env.local',
+  properties: '.env.local.properties',
+};
+
 /** 저장소(모노레포면 패키지 폴더)의 senv.json. 값은 담지 않으므로 커밋한다 (PRD 6.1) */
 export interface ProjectConfig {
   project: string;
   defaultEnv: EnvironmentName;
   /** pull이 쓰는 파일. senv.json이 있는 폴더 기준 상대 경로 */
   output: string;
-  format: 'dotenv';
+  format: EnvFileFormat;
 }
 
 export interface LoadedProjectConfig {
@@ -42,20 +52,24 @@ export class InvalidProjectConfigError extends Error {
   }
 }
 
-const configSchema = z.object({
-  project: z.string().refine((name) => name === SHARED_PROJECT_NAME || isValidProjectName(name), {
-    error: '소문자·숫자·하이픈, 32자 이하의 프로젝트 이름이어야 합니다',
-  }),
-  defaultEnv: z
-    .enum(ENVIRONMENT_NAMES, { error: 'local, development, production 중 하나여야 합니다' })
-    .default('local'),
-  output: z
-    .string()
-    .min(1)
-    .refine(isInsideRoot, { error: 'senv.json이 있는 폴더 안의 상대 경로여야 합니다' })
-    .default('.env.local'),
-  format: z.literal('dotenv', { error: '지금은 dotenv만 지원합니다' }).default('dotenv'),
-});
+const configSchema = z
+  .object({
+    project: z.string().refine((name) => name === SHARED_PROJECT_NAME || isValidProjectName(name), {
+      error: '소문자·숫자·하이픈, 32자 이하의 프로젝트 이름이어야 합니다',
+    }),
+    defaultEnv: z
+      .enum(ENVIRONMENT_NAMES, { error: 'local, development, production 중 하나여야 합니다' })
+      .default('local'),
+    output: z
+      .string()
+      .min(1)
+      .refine(isInsideRoot, { error: 'senv.json이 있는 폴더 안의 상대 경로여야 합니다' })
+      .optional(),
+    format: z
+      .enum(ENV_FILE_FORMATS, { error: 'dotenv 또는 properties여야 합니다' })
+      .default('dotenv'),
+  })
+  .transform((config) => ({ ...config, output: config.output ?? DEFAULT_OUTPUT[config.format] }));
 
 /** cwd부터 상위 폴더로 올라가며 가장 가까운 senv.json을 찾아 읽는다 */
 export async function findProjectConfig(cwd: string): Promise<LoadedProjectConfig> {

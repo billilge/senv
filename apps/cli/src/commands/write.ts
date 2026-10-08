@@ -1,14 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { SenvApiError, unwrap } from '@senv/api-client';
-import {
-  type ChangeSet,
-  createChangeSet,
-  diffVariables,
-  type EnvironmentName,
-  parseDotenv,
-} from '@senv/core';
+import { type ChangeSet, createChangeSet, diffVariables, type EnvironmentName } from '@senv/core';
 import type { CliContext } from '../context.js';
+import { parseEnvFile } from '../files/env-file.js';
 import { getDelivered, resolveTarget, type Target } from './target.js';
 
 export class InvalidAssignmentError extends Error {
@@ -72,7 +67,7 @@ export async function push(
 ): Promise<void> {
   const target = await resolveTarget(context, options.env);
   const file = options.file ?? target.config.output;
-  const local = parseDotenv(await readFile(join(target.root, file), 'utf8'));
+  const local = parseEnvFile(target.config.format, await readFile(join(target.root, file), 'utf8'));
   const remote = await getDelivered(context, target);
 
   const setValues = Object.fromEntries(

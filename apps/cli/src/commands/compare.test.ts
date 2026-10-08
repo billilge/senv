@@ -92,3 +92,36 @@ describe('senv diff', () => {
     expect(logs.info.join('\n')).toMatch(/같습니다/);
   });
 });
+
+describe('properties 형식', () => {
+  it('status는 기본 출력 파일(.env.local.properties)의 머리글을 읽는다', async () => {
+    const root = await webRepo({ project: 'web', format: 'properties' });
+    await writeFile(join(root, '.env.local.properties'), pulledFile(3, 1, 'A=1\n'));
+    const api = new FakeApi().reply(
+      'GET',
+      '/api/v1/projects/web/envs/local/variables',
+      delivered('local', { A: '1' }),
+    );
+    const { context, logs } = await setup(api, root);
+
+    await status(context);
+    expect(logs.info.join('\n')).toMatch(/최신입니다/);
+  });
+
+  it('diff는 properties 규칙(이스케이프·\\u)으로 읽어 비교한다', async () => {
+    const root = await webRepo({ project: 'web', format: 'properties' });
+    await writeFile(
+      join(root, '.env.local.properties'),
+      pulledFile(3, 1, 'DB_URL=jdbc\\:mysql://db\\:3306\nGREETING=\\uC548\\uB155\nOLD=1\n'),
+    );
+    const api = new FakeApi().reply(
+      'GET',
+      '/api/v1/projects/web/envs/local/variables',
+      delivered('local', { DB_URL: 'jdbc:mysql://db:3306', GREETING: '안녕', NEW: 'x' }),
+    );
+    const { context, logs } = await setup(api, root);
+
+    await diff(context);
+    expect(logs.result).toEqual(['+ NEW\n- OLD']);
+  });
+});

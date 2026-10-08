@@ -1,8 +1,8 @@
-import { type EnvironmentName, serializeDotenv } from '@senv/core';
+import { type EnvironmentName, serializeDotenv, serializeProperties } from '@senv/core';
 import type { CliContext } from '../context.js';
 import { fetchVariables, resolveTarget } from './target.js';
 
-export const EXPORT_FORMATS = ['dotenv', 'json', 'shell', 'yaml'] as const;
+export const EXPORT_FORMATS = ['dotenv', 'json', 'shell', 'yaml', 'properties'] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
 
 /** senv export: 원하는 형식으로 표준 출력에 쓴다 (PRD 6.2). 노출 검사는 pull과 같다 */
@@ -29,5 +29,7 @@ function format(entries: [string, string][], kind: ExportFormat): string {
       return entries.map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join('\n');
     case 'dotenv':
       return serializeDotenv(Object.fromEntries(entries)).trimEnd();
+    case 'properties':
+      return serializeProperties(Object.fromEntries(entries)).trimEnd();
   }
 }

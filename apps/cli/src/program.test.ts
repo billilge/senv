@@ -163,6 +163,7 @@ describe('senv 명령줄', () => {
     expect(await exec('export', '--format', 'json')).toBe(0);
     expect(JSON.parse(stdout.join(''))).toEqual({ A: '1' });
     expect(await exec('export', '--format', 'xml')).toBe(2);
+    expect(await exec('init', '--format', 'xml')).toBe(2);
 
     await writeFile(join(cwd, '.env.local'), '# senv: web/local v3 (shared v1)\nA=1\n');
     expect(await exec('status')).toBe(0);

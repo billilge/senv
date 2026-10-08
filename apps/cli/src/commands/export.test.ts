@@ -5,7 +5,7 @@ import { exportValues } from './export.js';
 
 const VALUES = { B: "it's", A: 'line1\nline2' };
 
-async function exported(format: 'dotenv' | 'json' | 'shell' | 'yaml') {
+async function exported(format: 'dotenv' | 'json' | 'shell' | 'yaml' | 'properties') {
   const root = await webRepo();
   const api = new FakeApi().reply(
     'GET',
@@ -29,6 +29,10 @@ describe('senv export', () => {
 
   it('yaml: 따옴표로 감싼 문자열', async () => {
     expect(await exported('yaml')).toBe('A: "line1\\nline2"\nB: "it\'s"');
+  });
+
+  it('properties: 머리글 없이 Spring 규칙으로', async () => {
+    expect(await exported('properties')).toBe("A=line1\\nline2\nB=it's");
   });
 
   it('dotenv: 머리글 없이', async () => {

@@ -40,6 +40,18 @@ describe('findProjectConfig', () => {
     });
   });
 
+  it('format이 properties이고 output이 없으면 .env.local.properties에 쓴다', async () => {
+    const dir = await makeTempDir();
+    await writeJson(dir, { project: 'web', format: 'properties' });
+
+    expect((await findProjectConfig(dir)).config).toEqual({
+      project: 'web',
+      defaultEnv: 'local',
+      output: '.env.local.properties',
+      format: 'properties',
+    });
+  });
+
   it('찾지 못하면 senv init을 안내하는 ProjectConfigNotFoundError다', async () => {
     const dir = await makeTempDir();
     const error = await findProjectConfig(dir).catch((e: unknown) => e);

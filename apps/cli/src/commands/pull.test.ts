@@ -3,7 +3,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { SenvApiError } from '@senv/api-client';
-import { parseDotenv } from '@senv/core';
+import { parseDotenv, parseProperties } from '@senv/core';
 import { describe, expect, it } from 'vitest';
 import { ProjectConfigNotFoundError } from '../config/project-config.js';
 import { createTestContext, FakeApi, signedIn } from '../testing/fake-api.js';
@@ -176,5 +176,46 @@ describe('senv pull', () => {
     expect(parseDotenv(await readFile(join(root, '.env.local'), 'utf8'))).toEqual({
       VITE_NEW: 'n',
     });
+  });
+});
+
+describe('senv pull (properties 형식)', () => {
+  it('Spring이 읽는 .properties 규칙으로 쓴다 (머리글·권한 600은 같다)', async () => {
+    const root = await webRepo({ project: 'web', format: 'properties' });
+    const variables = { DB_URL: 'jdbc:mysql://db:3306/app', GREETING: '안녕' };
+    const api = new FakeApi().reply(
+      'GET',
+      '/api/v1/projects/web/envs/local/variables',
+      values('local', variables),
+    );
+    const { context } = await setup(api, root);
+
+    await pull(context);
+
+    const path = join(root, '.env.local.properties');
+    const text = await readFile(path, 'utf8');
+    expect(text.split('\n')[0]).toBe('# senv: web/local v3 (shared v1)');
+    expect(text).toContain('DB_URL=jdbc:mysql://db:3306/app\n');
+    expect(text).toContain('GREETING=\\uC548\\uB155\n');
+    expect(parseProperties(text)).toEqual(variables);
+    expect((await stat(path)).mode & 0o777).toBe(0o600);
+  });
+
+  it('${...}가 든 값은 Spring이 다른 속성으로 바꾼다고 알린다 ($만 있으면 알리지 않는다)', async () => {
+    const root = await webRepo({ project: 'web', format: 'properties' });
+    const api = new FakeApi().reply(
+      'GET',
+      '/api/v1/projects/web/envs/local/variables',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: Spring 자리표시자를 글자 그대로 쓴다
+      values('local', { TEMPLATE: 'a${B}c', PRICE: '$5' }),
+    );
+    const { context, logs } = await setup(api, root);
+
+    await pull(context);
+
+    const warning = logs.warn.join('\n');
+    expect(warning).toContain('TEMPLATE');
+    expect(warning).toContain('Spring');
+    expect(warning).not.toContain('PRICE');
   });
 });

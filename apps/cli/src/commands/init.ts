@@ -2,7 +2,12 @@ import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { unwrap } from '@senv/api-client';
 import { type EnvironmentName, SHARED_PROJECT_NAME } from '@senv/core';
-import { CONFIG_FILE, writeProjectConfig } from '../config/project-config.js';
+import {
+  CONFIG_FILE,
+  DEFAULT_OUTPUT,
+  type EnvFileFormat,
+  writeProjectConfig,
+} from '../config/project-config.js';
 import type { CliContext } from '../context.js';
 import { ensureGitIgnored } from '../files/gitignore.js';
 
@@ -10,6 +15,7 @@ export interface InitOptions {
   project?: string;
   env?: EnvironmentName;
   output?: string;
+  format?: EnvFileFormat;
   force?: boolean;
 }
 
@@ -34,12 +40,13 @@ export async function init(context: CliContext, options: InitOptions = {}): Prom
     project = await chooseProject(context);
   }
 
-  const output = options.output ?? '.env.local';
+  const format = options.format ?? 'dotenv';
+  const output = options.output ?? DEFAULT_OUTPUT[format];
   await writeProjectConfig(cwd, {
     project,
     defaultEnv: options.env ?? 'local',
     output,
-    format: 'dotenv',
+    format,
   });
   out.info(`${CONFIG_FILE}을 만들었습니다 (프로젝트: ${project}). 이 파일은 커밋하세요.`);
 

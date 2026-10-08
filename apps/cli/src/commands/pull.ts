@@ -1,7 +1,8 @@
 import { chmod, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { type EnvironmentName, serializeDotenv } from '@senv/core';
+import type { EnvironmentName } from '@senv/core';
 import type { CliContext } from '../context.js';
+import { serializeEnvFile, substitutedKeys } from '../files/env-file.js';
 import { isGitIgnored } from '../files/gitignore.js';
 import { fetchVariables, resolveTarget } from './target.js';
 
@@ -32,13 +33,12 @@ export async function pull(context: CliContext, options: PullOptions = {}): Prom
 
   const delivered = await fetchVariables(context, target);
   const label = `${delivered.project}/${delivered.env} v${delivered.version}`;
-  const text = serializeDotenv(delivered.variables, {
-    header: [
-      `senv: ${label} (shared v${delivered.sharedVersion})`,
-      `generated: ${context.now().toISOString()}`,
-      '직접 고치지 말고 senv pull로 다시 받으세요. 이 파일은 커밋하지 않습니다.',
-    ],
-  });
+  const format = target.config.format;
+  const text = serializeEnvFile(format, delivered.variables, [
+    `senv: ${label} (shared v${delivered.sharedVersion})`,
+    `generated: ${context.now().toISOString()}`,
+    '직접 고치지 말고 senv pull로 다시 받으세요. 이 파일은 커밋하지 않습니다.',
+  ]);
 
   const path = join(target.root, output);
   await writeFile(path, text, { mode: 0o600 });
@@ -48,13 +48,12 @@ export async function pull(context: CliContext, options: PullOptions = {}): Prom
   const count = Object.keys(delivered.variables).length;
   context.out.info(`${count}개 값을 ${output}에 썼습니다 (${label}).`);
 
-  // Vite·Expo는 .env를 읽을 때 $VAR를 치환해서 값이 달라질 수 있다 (PRD 결정 기록 28)
-  const withDollar = Object.keys(delivered.variables).filter((key) =>
-    delivered.variables[key]?.includes('$'),
+  // 파일을 읽는 도구가 값을 치환할 수 있다 (PRD 결정 28, 65)
+  const substituted = substitutedKeys(format, delivered.variables);
+  if (substituted.length === 0) return;
+  context.out.warn(
+    format === 'properties'
+      ? `${substituted.join(', ')} 값에 \${...}가 있습니다. Spring은 이것을 다른 속성 값으로 바꾸므로, 글자 그대로 써야 하는 값인지 확인하세요.`
+      : `${substituted.join(', ')} 값에 $가 있습니다. Vite·Expo 같은 도구는 .env의 $를 치환하므로, 이 값들이 필요하면 senv run으로 실행하세요.`,
   );
-  if (withDollar.length > 0) {
-    context.out.warn(
-      `${withDollar.join(', ')} 값에 $가 있습니다. Vite·Expo 같은 도구는 .env의 $를 치환하므로, 이 값들이 필요하면 senv run으로 실행하세요.`,
-    );
-  }
 }
