@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
+
+// CI 러너는 로컬보다 3배쯤 느리다. 첫 화면이 기본 대기 시간(1초)을 넘겨 findBy가 실패한 적이 있다
+configure({ asyncUtilTimeout: 5000 });
 
 afterEach(() => {
   cleanup();

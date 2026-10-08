@@ -1025,7 +1025,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 
 ## 15. 구현 현황
 
-기준: 2026-10-08, 브랜치 `feat/m1-core`, 커밋 95개 (아직 push하지 않음). 모든 커밋은 `pnpm verify`(Biome, 타입 검사, 빌드, 테스트)를 통과한 뒤에 만들었다. M1 범위(결정 39·46으로 늘어난 범위 포함)의 구현은 모두 끝났고, 남은 것은 운영 준비다.
+기준: 2026-10-08, 브랜치 `main`(GitHub 기본 브랜치, `feat/m1-core`와 같은 내용), 커밋 96개. 모든 커밋은 `pnpm verify`(Biome, 타입 검사, 빌드, 테스트)를 통과한 뒤에 만들었다. M1 범위(결정 39·46으로 늘어난 범위 포함)의 구현은 모두 끝났고, 남은 것은 운영 준비다.
 
 ### 15.1 테스트
 
@@ -1065,7 +1065,7 @@ R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 �
 
 | 작업 | 상태 |
 | --- | --- |
-| 첫 push 후 GitHub Actions(CI·이미지 검사) 결과 확인. 로컬의 `pnpm smoke:docker`는 Dockerfile을 처음 만들 때 통과했고, 배포 대상 연동 이후에는 외부 접속(이미지 빌드 시 npm 내려받기)을 피하려고 다시 돌리지 않았다 | 확인 필요 |
+| GitHub Actions(CI·이미지 검사) 통과 확인. main의 첫 실행은 대시보드 테스트 하나가 느린 러너에서 `findBy` 기본 대기 시간(1초)을 넘겨 실패했다(로컬보다 약 3배 느림). 대기 시간을 5초로 늘렸으니 push 후 다시 확인한다. 로컬의 `pnpm smoke:docker`는 Dockerfile을 처음 만들 때 통과했고, 배포 대상 연동 이후에는 외부 접속(이미지 빌드 시 npm 내려받기)을 피하려고 다시 돌리지 않았다 | 확인 필요 |
 | 운영 중인 Coolify 버전에서 env API 필드 이름(`is_buildtime` 등)과 재배포 API가 결정 51과 같은지 확인 (14.1) | 확인 필요 |
 | 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관, Coolify API 토큰) | 담당자 작업 |
 
@@ -1078,7 +1078,6 @@ R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 �
 | 로그 | nestjs-pino | Nest 기본 로거 | M1 범위를 줄였다. 필요해지면 붙인다 |
 | 헬스체크 | @nestjs/terminus, MySQL·R2 확인 | 직접 구현, MySQL만 확인 | R2 상태는 실제 요청의 오류로 드러난다 |
 | 서버 모듈 구성 | 기능별 Nest 모듈(AuthModule 등) | `AppModule.register()` 하나에서 팩토리로 조립. 서비스는 Nest에 묶이지 않은 클래스 | 서비스를 Nest 없이 테스트한다 |
-| 작업 큐 | M1부터 `jobs` 테이블 | M2·M3에서 만든다 | M1 worker에는 큐가 필요한 작업이 없다 (결정 33) |
 | 매트릭스 표 | Primer DataTable + TanStack Table | HTML 표 + Primer 토큰 | M1 표에는 필터·정렬이 없다 |
 | diff 표시 | jsdiff | `core`의 `diffVariables` (키 이름만) | M1 게시 확인은 값을 보여주지 않는다 |
 | 로컬 개발 | `docker-compose.dev.yml` (MySQL, MinIO) | Testcontainers MySQL + 메모리 저장소, 대시보드 목업 모드 | 저장소 I/O는 자동 테스트하지 않기로 했다 |
