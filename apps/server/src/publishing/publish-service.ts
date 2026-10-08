@@ -243,9 +243,10 @@ export class PublishService {
         },
       },
     });
-    const requiredKeys = await this.prisma.keySchema.findMany({
-      where: { project: { name: { in: projects } }, required: true },
-      select: { key: true, optionalIn: true, project: { select: { name: true } } },
+    // 값이 없는 선택 키도 매트릭스 행이므로 스키마의 모든 키를 센다 (결정 75)
+    const schemaKeys = await this.prisma.keySchema.findMany({
+      where: { project: { name: { in: projects } } },
+      select: { key: true, required: true, optionalIn: true, project: { select: { name: true } } },
     });
 
     const summaries = new Map<string, ProjectSummary>();
@@ -283,10 +284,11 @@ export class PublishService {
         keysByEnv.set(row.name, new Set(keys));
       }
 
-      const required = requiredKeys.filter((entry) => entry.project.name === project);
+      const schema = schemaKeys.filter((entry) => entry.project.name === project);
+      const required = schema.filter((entry) => entry.required);
       const allKeys = new Set([
         ...[...keysByEnv.values()].flatMap((keys) => [...keys]),
-        ...required.map((entry) => entry.key),
+        ...schema.map((entry) => entry.key),
       ]);
       let missing = 0;
       let missingRequired = 0;

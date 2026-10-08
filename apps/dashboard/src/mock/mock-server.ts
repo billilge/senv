@@ -438,7 +438,8 @@ export class MockServer {
   /** 서버의 PublishService.summarize와 같은 규칙 */
   private summary(name: string) {
     const values = this.state.values[name];
-    const required = this.schemaOf(name).keys.filter((entry) => entry.required);
+    const schema = this.schemaOf(name).keys;
+    const required = schema.filter((entry) => entry.required);
     const environments = ENVIRONMENT_NAMES.map((env) => {
       const snapshot = values?.[env];
       const latest = snapshot ? historyOf(snapshot).at(-1) : undefined;
@@ -450,7 +451,7 @@ export class MockServer {
     });
     const allKeys = new Set([
       ...ENVIRONMENT_NAMES.flatMap((env) => Object.keys(values?.[env]?.variables ?? {})),
-      ...required.map((entry) => entry.key),
+      ...schema.map((entry) => entry.key),
     ]);
     let missing = 0;
     let missingRequired = 0;

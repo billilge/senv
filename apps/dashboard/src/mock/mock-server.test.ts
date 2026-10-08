@@ -253,6 +253,13 @@ describe('목업 서버', () => {
     ]);
     // server production에는 REDIS_URL이 없다 (필수지만 production은 예외)
     expect(server.summary).toMatchObject({ missing: 1, missingRequired: 0 });
+
+    // 값이 없는 선택 키도 세 환경 모두 누락으로 센다 (결정 75)
+    await call('PUT', '/api/v1/projects/server/schema/keys/NEW_OPTIONAL', {});
+    const after = (await call('GET', '/api/v1/projects?include=summary')).body.projects.find(
+      (p: { name: string }) => p.name === 'server',
+    );
+    expect(after.summary).toMatchObject({ missing: 4, missingRequired: 0 });
   });
 
   it('관리자는 역할을 미리 지정하고 지운다. 이미 있는 사용자는 409다', async () => {

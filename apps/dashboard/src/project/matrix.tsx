@@ -19,11 +19,11 @@ export interface MatrixProps {
 /** 행은 키, 열은 환경. 값은 가리고, 누락과 다른 환경과 같은 값을 표시한다 (PRD 7.1) */
 export function Matrix({ envs, values, schema = [], localNote }: MatrixProps) {
   const schemaByKey = new Map(schema.map((entry) => [entry.key, entry]));
-  // 어느 환경에도 값이 없는 필수 키도 행으로 보여 누락을 드러낸다
+  // 어느 환경에도 값이 없는 스키마 키도 행으로 보여 누락을 드러낸다 (결정 75)
   const keys = [
     ...new Set([
       ...envs.flatMap((env) => Object.keys(values[env]?.variables ?? {})),
-      ...schema.filter((entry) => entry.required).map((entry) => entry.key),
+      ...schema.map((entry) => entry.key),
     ]),
   ].sort();
 

@@ -192,4 +192,16 @@ describe('키 스키마', () => {
     );
     expect(debug.getAllByText('••••••')).toHaveLength(3);
   });
+
+  it('어느 환경에도 값이 없는 선택 키도 매트릭스 행으로 보여 누락을 드러낸다 (결정 75)', async () => {
+    const api = server().reply('GET', '/api/v1/projects/web/schema', {
+      status: 200,
+      body: { publicPrefixes: ['VITE_'], keys: [key('API_URL'), key('REDIS_URL')] },
+    });
+    renderApp('/projects/web', api);
+    const redis = within(
+      (await screen.findByRole('rowheader', { name: /REDIS_URL/ })).closest('tr') as HTMLElement,
+    );
+    expect(redis.getAllByText('누락')).toHaveLength(3);
+  });
 });

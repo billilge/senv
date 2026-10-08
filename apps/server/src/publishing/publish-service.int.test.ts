@@ -563,6 +563,15 @@ describe('PublishService.summarize (프로젝트 목록 요약)', () => {
     );
   });
 
+  it('값이 없는 선택 스키마 키도 누락 칸으로 센다 (결정 75)', async () => {
+    await publish({ env: 'local', changes: { set: { A: '1' } } });
+    await new KeySchemaService(prisma, () => NOW).put('server', 'REDIS_URL', {}, 'u1');
+
+    const summary = (await service.summarize(['server'])).get('server');
+    // development는 A·REDIS_URL, production도 A·REDIS_URL, local은 REDIS_URL이 없다
+    expect(summary).toMatchObject({ missing: 5, missingRequired: 0 });
+  });
+
   it('키 이름이 기록되지 않은 예전 버전은 스냅샷에서 읽는다', async () => {
     await publish({ env: 'production', changes: { set: { A: '1', B: '1' } } });
     await publish({ env: 'local', changes: { set: { A: '1' } } });
