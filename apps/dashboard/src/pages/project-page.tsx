@@ -12,6 +12,8 @@ import { Button, Flash, PageHeader, Spinner, Stack, UnderlineNav } from '@primer
 import { SenvApiError } from '@senv/api-client';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
+import { matrixNote } from '../local/link-status';
+import { useLocalLinks } from '../local/queries';
 import { CopyDialog } from '../project/copy-dialog';
 import { EnvironmentEditor } from '../project/environment-editor';
 import { KeySchemaPanel } from '../project/key-schema';
@@ -137,6 +139,8 @@ function ProjectValues({
   const results = useEnvironmentValues(project, envs);
   // 스키마를 못 받아도 값은 보여준다 (모든 값을 가린다)
   const schema = useKeySchema(project);
+  // 내 로컬 연결을 못 받아도 값은 보여준다
+  const myLink = useLocalLinks().data?.links.find((link) => link.project === project);
   const [editing, setEditing] = useState<{
     env: EnvironmentName;
     initialChanges?: Record<string, string>;
@@ -215,7 +219,12 @@ function ProjectValues({
           <p className={list.empty}>아직 값이 없습니다. 위의 편집 버튼으로 값을 추가하세요.</p>
         </div>
       ) : (
-        <Matrix envs={envs} values={values} schema={schema.data?.keys} />
+        <Matrix
+          envs={envs}
+          values={values}
+          schema={schema.data?.keys}
+          localNote={myLink ? matrixNote(myLink) : undefined}
+        />
       )}
     </Stack>
   );

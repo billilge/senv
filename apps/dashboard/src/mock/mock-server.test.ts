@@ -318,4 +318,39 @@ describe('목업 서버', () => {
     const [latest] = (await call('GET', `/api/v1/targets/mappings/${mapping.id}/runs`)).body.runs;
     expect(latest).toMatchObject({ trigger: 'publish', changedKeys: ['LOG_LEVEL'] });
   });
+
+  it('내 로컬 연결: 기기와 연결을 주고, 추가한 연결은 승인 대기이며 일시정지·덮어쓰기·삭제를 한다', async () => {
+    const { call } = setup({ persona: 'member' });
+
+    const devices = (await call('GET', '/api/v1/me/devices')).body.devices;
+    expect(devices.length).toBeGreaterThan(0);
+    const before = (await call('GET', '/api/v1/me/local-links')).body.links.length;
+
+    const created = await call('POST', '/api/v1/me/local-links', {
+      deviceId: devices[0].id,
+      project: 'web',
+      path: '/Users/carol/new/web',
+    });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ status: 'pending', project: 'web' });
+    expect(
+      (
+        await call('POST', '/api/v1/me/local-links', {
+          deviceId: devices[0].id,
+          project: 'web',
+          path: 'rel',
+        })
+      ).status,
+    ).toBe(422);
+
+    const id = created.body.id;
+    expect(
+      (await call('PATCH', `/api/v1/me/local-links/${id}`, { paused: true })).body.status,
+    ).toBe('paused');
+    expect(
+      (await call('POST', `/api/v1/me/local-links/${id}/overwrite`)).body.overwriteRequested,
+    ).toBe(true);
+    expect((await call('DELETE', `/api/v1/me/local-links/${id}`)).status).toBe(204);
+    expect((await call('GET', '/api/v1/me/local-links')).body.links).toHaveLength(before);
+  });
 });

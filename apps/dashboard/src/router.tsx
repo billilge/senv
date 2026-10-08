@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router';
 import { AppLayout } from './layout/app-layout';
 import { DevicePage } from './pages/device-page';
+import { LocalLinksPage } from './pages/local-links-page';
 import { LoginPage } from './pages/login-page';
 import { ProjectPage } from './pages/project-page';
 import { ProjectsPage } from './pages/projects-page';
@@ -89,6 +90,11 @@ const deviceRoute = createRoute({
     return <DevicePage code={code} />;
   },
 });
+const localLinksRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/me/local',
+  component: LocalLinksPage,
+});
 const usersRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/admin/users',
@@ -106,6 +112,7 @@ const routeTree = rootRoute.addChildren([
     targetsRoute,
     deviceRoute,
     usersRoute,
+    localLinksRoute,
   ]),
 ]);
 

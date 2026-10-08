@@ -10,6 +10,7 @@ import {
   hasChanges,
   isEnvironmentName,
   isValidKeyName,
+  isValidLocalPath,
   isValidProjectName,
   isValidPublicPrefix,
   matchesKeyFilter,
@@ -18,6 +19,7 @@ import {
   validateEnvironment,
   versionRo,
 } from '@senv/core';
+import { deviceView, initialLocal, localLinkView, type MockLocalState } from './mock-local';
 import {
   connectionView,
   initialTargets,
@@ -76,6 +78,8 @@ export interface MockState {
   assignments?: { login: string; role: 'admin' | 'member'; createdAt: string }[];
   /** 배포 대상 (결정 56). 예전에 저장한 목업 데이터에는 없을 수 있다 */
   targets?: MockTargetsState;
+  /** 로컬 자동 받기 (M1.1). 예전에 저장한 목업 데이터에는 없을 수 있다 */
+  local?: MockLocalState;
 }
 
 const schemaKey = (key: string, fields: Partial<KeySchema> = {}): KeySchema => ({
@@ -383,6 +387,9 @@ export class MockServer {
     if (path.startsWith('/api/v1/targets') || /^\/api\/v1\/projects\/[^/]+\/targets$/.test(path)) {
       return this.targetRoutes(me, method, path, body);
     }
+    if (path.startsWith('/api/v1/me/devices') || path.startsWith('/api/v1/me/local-links')) {
+      return this.localRoutes(method, path, body);
+    }
     if (path.startsWith('/api/v1/role-assignments')) {
       return this.assignments(me, method, path, body);
     }
@@ -506,6 +513,131 @@ export class MockServer {
         state.assignments = current.filter((other) => other.login !== login);
       });
       return new Reply(204);
+    }
+    return problem(404, 'not_found', `목업에 없는 경로: ${method} ${path}`);
+  }
+
+  private localState(): MockLocalState {
+    return this.state.local ?? initialLocal();
+  }
+
+  private saveLocal(change: (local: MockLocalState) => void) {
+    this.update((state) => {
+      const local = structuredClone(state.local ?? initialLocal());
+      change(local);
+      state.local = local;
+    });
+  }
+
+  /** 로컬 자동 받기 (M1.1). 목업에는 에이전트가 없어 승인 대기 연결은 그대로 남는다 */
+  private localRoutes(method: string, path: string, body: Record<string, unknown>): Reply {
+    const local = this.localState();
+    const current = (project: string) => ({
+      version: this.state.values[project]?.local?.version ?? 0,
+      sharedVersion: this.state.values[SHARED_PROJECT_NAME]?.local?.version ?? 0,
+    });
+    const view = (id: string) => {
+      const link = this.localState().links.find((candidate) => candidate.id === id);
+      return link
+        ? new Reply(200, localLinkView(link, this.localState(), current(link.project)))
+        : problem(404, 'local_link_not_found', '로컬 연결이 없습니다');
+    };
+
+    if (path === '/api/v1/me/devices' && method === 'GET') {
+      return new Reply(200, { devices: local.devices.map(deviceView) });
+    }
+    const deviceMatch = path.match(/^\/api\/v1\/me\/devices\/([^/]+)$/);
+    if (deviceMatch && method === 'DELETE') {
+      const id = deviceMatch[1];
+      if (!local.devices.some((device) => device.id === id)) {
+        return problem(404, 'device_not_found', '기기가 없습니다');
+      }
+      this.saveLocal((next) => {
+        next.devices = next.devices.filter((device) => device.id !== id);
+        next.links = next.links.filter((link) => link.deviceId !== id);
+      });
+      return new Reply(204);
+    }
+    if (path === '/api/v1/me/local-links') {
+      if (method === 'GET') {
+        return new Reply(200, {
+          links: local.links.map((link) => localLinkView(link, local, current(link.project))),
+        });
+      }
+      if (method === 'POST') {
+        const deviceId = String(body.deviceId ?? '');
+        const project = String(body.project ?? '');
+        const linkPath = String(body.path ?? '');
+        if (!local.devices.some((device) => device.id === deviceId)) {
+          return problem(404, 'device_not_found', '기기가 없습니다');
+        }
+        if (project === SHARED_PROJECT_NAME) {
+          return problem(
+            422,
+            'shared_group_not_linkable',
+            '공유 그룹은 로컬 연결을 만들지 않습니다',
+          );
+        }
+        if (!this.state.projects.some((candidate) => candidate.name === project)) {
+          return problem(404, 'project_not_found', `프로젝트가 없습니다: ${project}`);
+        }
+        if (!isValidLocalPath(linkPath)) {
+          return problem(
+            422,
+            'invalid_local_path',
+            '경로는 senv.json이 있는 폴더의 절대 경로여야 합니다',
+          );
+        }
+        if (local.links.some((link) => link.deviceId === deviceId && link.path === linkPath)) {
+          return problem(409, 'local_link_exists', '이 기기에 이미 같은 경로의 연결이 있습니다');
+        }
+        const id = `ll-${Date.now().toString(36)}`;
+        this.saveLocal((next) => {
+          next.links.push({
+            id,
+            deviceId,
+            project,
+            path: linkPath,
+            status: 'pending',
+            approvedAt: null,
+            lastWritten: null,
+            lastState: null,
+            overwriteRequested: false,
+            createdAt: new Date().toISOString(),
+          });
+        });
+        const created = view(id);
+        return new Reply(201, created.body);
+      }
+    }
+    const linkMatch = path.match(/^\/api\/v1\/me\/local-links\/([^/]+)(\/overwrite)?$/);
+    if (linkMatch) {
+      const id = linkMatch[1] ?? '';
+      const link = local.links.find((candidate) => candidate.id === id);
+      if (!link) return problem(404, 'local_link_not_found', '로컬 연결이 없습니다');
+      if (linkMatch[2] && method === 'POST') {
+        this.saveLocal((next) => {
+          const target = next.links.find((candidate) => candidate.id === id);
+          if (target) target.overwriteRequested = true;
+        });
+        return view(id);
+      }
+      if (!linkMatch[2] && method === 'PATCH') {
+        this.saveLocal((next) => {
+          const target = next.links.find((candidate) => candidate.id === id);
+          if (!target) return;
+          if (typeof body.paused === 'boolean') {
+            target.status = body.paused ? 'paused' : target.approvedAt ? 'active' : 'pending';
+          }
+        });
+        return view(id);
+      }
+      if (!linkMatch[2] && method === 'DELETE') {
+        this.saveLocal((next) => {
+          next.links = next.links.filter((candidate) => candidate.id !== id);
+        });
+        return new Reply(204);
+      }
     }
     return problem(404, 'not_found', `목업에 없는 경로: ${method} ${path}`);
   }

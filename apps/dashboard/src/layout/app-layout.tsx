@@ -70,6 +70,9 @@ function TopBar({ me, showNav }: { me: User; showNav: boolean }) {
                 <ActionList.GroupHeading>
                   <Text>{me.name ?? me.login}</Text>
                 </ActionList.GroupHeading>
+                <ActionList.Item onSelect={() => navigate({ to: '/me/local' })}>
+                  내 로컬 연결
+                </ActionList.Item>
                 <ActionList.Item variant="danger" onSelect={logout}>
                   로그아웃
                 </ActionList.Item>
