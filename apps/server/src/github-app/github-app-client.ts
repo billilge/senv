@@ -12,8 +12,6 @@ export interface RepositoryFile {
   size: number;
   /** UTF-8 내용. 1MB가 넘는 파일은 GitHub가 내용을 주지 않아 빈 문자열이다 */
   text: string;
-  /** GitHub에서 파일을 보는 주소 */
-  htmlUrl: string;
 }
 
 /** App 설치가 없어졌거나 권한이 거부됨 (401·403·404) */

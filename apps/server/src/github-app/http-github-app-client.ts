@@ -72,14 +72,13 @@ export class HttpGitHubAppClient extends GitHubAppClient {
       size: number;
       content?: string;
       encoding?: string;
-      html_url: string;
     };
     if (body.type !== 'file') return null; // 폴더면 배열이 온다
     const text =
       body.encoding === 'base64' && body.content
         ? Buffer.from(body.content, 'base64').toString('utf8')
         : '';
-    return { sha: body.sha, size: body.size, text, htmlUrl: body.html_url };
+    return { sha: body.sha, size: body.size, text };
   }
 
   private appJwt(): string {

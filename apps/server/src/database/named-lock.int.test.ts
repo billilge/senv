@@ -42,6 +42,23 @@ describe('withNamedLock (MySQL GET_LOCK)', () => {
     expect(await first).toEqual({ ran: true, result: 'first' });
   });
 
+  it('기다릴 시간을 주면 잠금이 풀릴 때까지 기다렸다가 일한다', async () => {
+    const holding = deferred();
+    const started = deferred();
+    const first = withNamedLock(prisma, 'senv:test', async () => {
+      started.resolve();
+      await holding.promise;
+      return 'first';
+    });
+    await started.promise;
+
+    const second = withNamedLock(prisma, 'senv:test', async () => 'second', { waitSeconds: 5 });
+    setTimeout(holding.resolve, 200);
+
+    expect(await first).toEqual({ ran: true, result: 'first' });
+    expect(await second).toEqual({ ran: true, result: 'second' });
+  });
+
   it('일이 실패해도 잠금을 풀어서 다음 실행은 된다', async () => {
     await expect(
       withNamedLock(prisma, 'senv:test', async () => {

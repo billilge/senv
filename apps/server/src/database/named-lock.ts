@@ -6,18 +6,20 @@ export type LockOutcome<T> = { ran: true; result: T } | { ran: false };
 const MAX_HOLD_MS = 10 * 60 * 1000;
 
 /**
- * MySQL 이름 잠금(GET_LOCK)을 얻었을 때만 일을 한다. 다른 쪽이 쥐고 있으면 기다리지 않고 건너뛴다.
+ * MySQL 이름 잠금(GET_LOCK)을 얻었을 때만 일을 한다. 다른 쪽이 쥐고 있으면 waitSeconds(기본 0)만큼
+ * 기다리고, 그래도 못 얻으면 건너뛴다.
  * 이름 잠금은 연결 단위라서, 얻고 푸는 쿼리가 같은 연결에서 돌도록 트랜잭션 안에서 실행한다.
  */
 export async function withNamedLock<T>(
   prisma: PrismaClient,
   name: string,
   work: () => Promise<T>,
+  { waitSeconds = 0 }: { waitSeconds?: number } = {},
 ): Promise<LockOutcome<T>> {
   return prisma.$transaction(
     async (tx) => {
       const [row] = await tx.$queryRaw<{ acquired: bigint | number | null }[]>`
-        SELECT GET_LOCK(${name}, 0) AS acquired`;
+        SELECT GET_LOCK(${name}, ${waitSeconds}) AS acquired`;
       if (Number(row?.acquired) !== 1) return { ran: false };
       try {
         return { ran: true, result: await work() };
