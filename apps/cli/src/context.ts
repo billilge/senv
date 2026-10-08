@@ -39,4 +39,10 @@ export interface CliContext {
   openBrowser(url: string): Promise<void>;
   sleep(ms: number): Promise<void>;
   now(): Date;
+  /** CLI 설정 폴더 (토큰 파일, 로컬 자동 받기 기록) */
+  configDir: string;
+  /** 프롬프트에 답할 터미널이 있는지 */
+  interactive: boolean;
+  /** 이 PC의 이름 (로컬 자동 받기 기기 등록) */
+  hostname: string;
 }

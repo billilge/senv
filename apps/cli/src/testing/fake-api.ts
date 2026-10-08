@@ -52,7 +52,7 @@ export const TEST_API_URL = 'https://senv.example.com';
 /** 가짜 서버와 임시 폴더로 CLI 컨텍스트를 만든다. 출력과 대기·브라우저 호출을 기록한다 */
 export async function createTestContext(
   api: FakeApi,
-  overrides: Partial<Pick<CliContext, 'cwd' | 'env' | 'now'>> = {},
+  overrides: Partial<Pick<CliContext, 'cwd' | 'env' | 'now' | 'interactive'>> = {},
 ) {
   const configDir = await makeTempDir();
   const credentials = new FileCredentialStore(configDir);
@@ -106,6 +106,9 @@ export async function createTestContext(
       sleeps.push(ms);
     },
     now,
+    configDir,
+    interactive: overrides.interactive ?? false,
+    hostname: 'test-host',
   };
   return { context, logs, sleeps, opened, credentials };
 }

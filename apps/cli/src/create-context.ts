@@ -1,4 +1,4 @@
-import { homedir } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import * as clack from '@clack/prompts';
@@ -67,5 +67,8 @@ export async function createRealContext(): Promise<CliContext> {
     },
     sleep: (ms) => sleep(ms),
     now: () => new Date(),
+    configDir,
+    interactive: Boolean(process.stdin.isTTY && process.stderr.isTTY),
+    hostname: hostname(),
   };
 }
