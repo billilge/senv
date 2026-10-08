@@ -73,3 +73,14 @@ export function localLinkSyncState(
     ? 'synced'
     : 'behind';
 }
+
+export const MAX_LOCAL_PATH_LENGTH = 512;
+
+/** 로컬 연결 경로: 기기의 절대 경로. 실제로 쓸 수 있는지는 에이전트가 다시 검사한다 (결정 61) */
+export function isValidLocalPath(path: string): boolean {
+  if (path === '' || path.length > MAX_LOCAL_PATH_LENGTH || path.trim() !== path) return false;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: 제어 문자가 든 경로를 막는다
+  if (/[\u0000-\u001f\u007f]/.test(path)) return false;
+  const absolute = path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path);
+  return absolute && !path.split(/[\\/]/).includes('..');
+}

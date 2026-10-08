@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   decideLocalWrite,
   isLocalLinkState,
+  isValidLocalPath,
   LOCAL_LINK_STATES,
   type LocalWriteInput,
   localLinkSyncState,
@@ -84,5 +85,26 @@ describe('LOCAL_LINK_STATES', () => {
     expect(LOCAL_LINK_STATES).toContain('modified');
     expect(isLocalLinkState('not_ignored')).toBe(true);
     expect(isLocalLinkState('rm -rf')).toBe(false);
+  });
+});
+
+describe('isValidLocalPath', () => {
+  it.each(['/Users/me/work/web', '/home/dev/stream/apps/api', 'C:\\work\\web', 'D:/work/web'])(
+    '절대 경로 %s',
+    (path) => {
+      expect(isValidLocalPath(path)).toBe(true);
+    },
+  );
+
+  it.each([
+    ['빈 값', ''],
+    ['상대 경로', 'work/web'],
+    ['~ 경로 (에이전트가 풀지 않는다)', '~/work/web'],
+    ['.. 포함', '/Users/me/../other'],
+    ['제어 문자', '/Users/me/web\u0000'],
+    ['앞뒤 공백', ' /Users/me/web'],
+    ['512자 초과', `/${'a'.repeat(512)}`],
+  ])('%s → 거부', (_label, path) => {
+    expect(isValidLocalPath(path)).toBe(false);
   });
 });
