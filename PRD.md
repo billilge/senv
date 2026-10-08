@@ -1032,7 +1032,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 패키지 | 테스트 수 | 범위 |
 | --- | --- | --- |
 | `packages/core` | 172 | dotenv, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙, 버전 조사, 배포 대상 계획·반영 후 동작 |
-| `apps/server` | 374 | 단위 + Testcontainers MySQL 통합: 암호화, 게시·버전 기록·되돌리기, 키 스키마, 목록 요약, 인증·역할 미리 지정, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, 배포 대상 연결·매핑·동기화·드리프트·가져오기, 작업 큐, worker |
+| `apps/server` | 375 | 단위 + Testcontainers MySQL 통합: 암호화, 게시·버전 기록·되돌리기, 키 스키마, 목록 요약, 인증·역할 미리 지정, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, 배포 이미지 구성, 배포 대상 연결·매핑·동기화·드리프트·가져오기, 작업 큐, worker |
 | `apps/cli` | 112 | 명령별 동작 (가짜 API): login·init·pull·run·list·get·status·diff·set·push·export·doctor, 노출 검사 |
 | `packages/api-client` | 9 | 클라이언트 생성, 오류 변환 |
 | `packages/target-testkit` | 9 | 계약 테스트를 메모리 제공자에 적용 |
@@ -1040,7 +1040,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | `apps/dashboard` | 96 | Testing Library 화면 흐름, 목업 서버 |
 | `e2e` (Vitest) | 1 | 실제 서버 + CLI 전체 흐름 (login → whoami → init → pull → run → logout) |
 | `e2e` (Playwright) | 1 | 로컬 Chrome으로 프로젝트 만들기 → 게시 → 버전 기록 → 배포 대상 연결 → 매핑 → 동기화 (`pnpm test:browser`) |
-| 합계 | 786 | |
+| 합계 | 787 | |
 
 R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 테스트하지 않는다. 메모리 저장소, 가짜 GitHub, 가짜 Coolify 서버·메모리 제공자로 대신한다.
 
@@ -1065,7 +1065,7 @@ R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 �
 
 | 작업 | 상태 |
 | --- | --- |
-| GitHub Actions(CI·이미지 검사) 통과 확인. main의 첫 실행은 대시보드 테스트 하나가 느린 러너에서 `findBy` 기본 대기 시간(1초)을 넘겨 실패했다(로컬보다 약 3배 느림). 대기 시간을 5초로 늘렸으니 push 후 다시 확인한다. 로컬의 `pnpm smoke:docker`는 Dockerfile을 처음 만들 때 통과했고, 배포 대상 연동 이후에는 외부 접속(이미지 빌드 시 npm 내려받기)을 피하려고 다시 돌리지 않았다 | 확인 필요 |
+| GitHub Actions(CI·이미지 검사) 통과 확인. main의 첫 실행은 대시보드 테스트 하나가 느린 러너에서 `findBy` 기본 대기 시간(1초)을 넘겨 실패했다(로컬보다 약 3배 느림). 대기 시간을 5초로 늘렸다. 이어서 이미지 검사가 api 기동 실패를 잡았다: 배포 대상 연동 때 서버 의존성에 `@senv/target-coolify`가 늘었는데 Dockerfile 실행 단계가 그 `dist`를 복사하지 않았다(로컬 `smoke:docker`는 외부 접속을 피하려고 그 뒤로 돌리지 않았다). 복사 줄을 넣고, 서버 운영 의존성과 Dockerfile의 복사 줄을 대조하는 단위 테스트(`src/app/docker-image.test.ts`)를 더했다. push 후 다시 확인한다 | 확인 필요 |
 | 운영 중인 Coolify 버전에서 env API 필드 이름(`is_buildtime` 등)과 재배포 API가 결정 51과 같은지 확인 (14.1) | 확인 필요 |
 | 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관, Coolify API 토큰) | 담당자 작업 |
 

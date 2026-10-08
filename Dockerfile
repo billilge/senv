@@ -26,7 +26,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY --from=prune /app/out/full/ .
 RUN pnpm turbo run build --filter=@senv/server --filter=@senv/dashboard
 
-# 운영 의존성만 (서버와 core). 대시보드는 빌드 결과 파일만 쓴다
+# 운영 의존성만 (서버와 서버가 쓰는 워크스페이스 패키지). 대시보드는 빌드 결과 파일만 쓴다
 FROM base AS prod-deps
 COPY --from=prune /app/out/json/ .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
@@ -35,7 +35,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM base AS runtime
 ENV NODE_ENV=production
 COPY --from=prod-deps /app ./
+# 서버가 실행 중에 불러오는 워크스페이스 패키지의 빌드 결과 (src/app/docker-image.test.ts가 빠짐을 검사한다)
 COPY --from=build /app/packages/core/dist ./packages/core/dist
+COPY --from=build /app/packages/target-coolify/dist ./packages/target-coolify/dist
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/server/prisma ./apps/server/prisma
 COPY --from=build /app/apps/server/prisma.config.ts ./apps/server/prisma.config.ts

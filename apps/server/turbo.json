@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      // src/app/docker-image.test.ts가 저장소 루트의 Dockerfile을 읽는다
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/Dockerfile"]
+    }
+  }
+}
