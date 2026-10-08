@@ -31,6 +31,23 @@ senv login
 
 서버 주소는 기본으로 `https://senv.stream.billilge.site`이고 `SENV_API_URL`로 바꾼다.
 
+## 로컬 자동 받기 (senv agent)
+
+local 값이 게시되면 내 PC의 `.env.local`을 자동으로 바꾼다. 대시보드의 "내 로컬 연결"에서 이 PC와 폴더(`senv.json`이 있는 폴더)를 고른다.
+
+```sh
+senv agent install    # 로그인할 때 자동 시작 (macOS launchd, Linux systemd 사용자 서비스)
+senv link list        # 이 PC의 연결과 상태
+senv link approve <id>  # 대시보드에서 추가한 연결은 이 PC에서 승인해야 쓴다
+senv link add         # 지금 폴더를 바로 연결 (승인 필요 없음)
+senv agent status     # 자동 시작 상태
+senv agent uninstall  # 자동 시작을 끄고 이 PC 등록을 지운다
+```
+
+- 30초마다 확인한다 (`senv agent --interval 60`처럼 바꿀 수 있다). 터미널에서 `senv agent`로 직접 돌려도 된다.
+- 폴더에 `senv.json`이 있고 프로젝트가 같으며, 출력 파일이 git에서 무시되고 심볼릭 링크가 아닐 때만 쓴다.
+- 직접 고친 파일은 덮어쓰지 않는다. 대시보드에서 "덮어쓰기"를 누르면 그때 쓴다.
+
 ## Spring Boot
 
 터미널에서는 파일 없이 실행한다. Spring은 환경변수를 바로 읽는다 (`SPRING_DATASOURCE_URL` → `spring.datasource.url`).

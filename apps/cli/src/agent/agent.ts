@@ -80,30 +80,60 @@ export class AgentStateStore {
   }
 }
 
+/** 이 PC를 서버에 등록했는지 확인하고, 안 했으면 호스트 이름으로 등록한다. 기기 ID를 돌려준다 */
+export async function ensureDevice(
+  context: CliContext,
+  store: AgentStateStore = new AgentStateStore(context.configDir),
+): Promise<string> {
+  const state = await store.load();
+  if (state.deviceId) return state.deviceId;
+  const device = await unwrap(
+    context.api.POST('/api/v1/agent/devices', { body: { name: context.hostname } }),
+  );
+  await store.save({ ...state, deviceId: device.id });
+  context.out.info(
+    `이 PC를 "${device.name}"(으)로 등록했습니다. 대시보드의 "내 로컬 연결"에서 폴더를 연결하세요.`,
+  );
+  return device.id;
+}
+
+/**
+ * senv agent: interval초마다 한 주기씩 돈다. 서버·네트워크 오류는 알리고 다음 주기에 다시 하고,
+ * 로그인이 끊기면 멈춘다 (자동 시작 서비스가 다시 띄운다).
+ */
+export async function runAgent(
+  context: CliContext,
+  options: { interval: number; cycles?: number },
+): Promise<void> {
+  const session: AgentSession = { notified: new Set() };
+  context.out.info(`senv agent: ${options.interval}초마다 로컬 연결을 확인합니다.`);
+  for (let cycle = 0; options.cycles === undefined || cycle < options.cycles; cycle++) {
+    if (cycle > 0) await context.sleep(options.interval * 1000);
+    try {
+      await runAgentCycle(context, session);
+    } catch (error) {
+      if (isAuthError(error)) throw error;
+      context.out.warn(
+        `확인하지 못했습니다. 다음 주기에 다시 시도합니다: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+}
+
 export async function runAgentCycle(
   context: CliContext,
   session: AgentSession = { notified: new Set() },
 ): Promise<void> {
   const store = new AgentStateStore(context.configDir);
+  const deviceId = await ensureDevice(context, store);
   const state = await store.load();
-
-  if (!state.deviceId) {
-    const device = await unwrap(
-      context.api.POST('/api/v1/agent/devices', { body: { name: context.hostname } }),
-    );
-    state.deviceId = device.id;
-    await store.save(state);
-    context.out.info(
-      `이 PC를 "${device.name}"(으)로 등록했습니다. 대시보드의 "내 로컬 연결"에서 폴더를 연결하세요.`,
-    );
-  }
 
   let links: LocalLink[];
   try {
     links = (
       await unwrap(
         context.api.GET('/api/v1/agent/devices/{id}/links', {
-          params: { path: { id: state.deviceId } },
+          params: { path: { id: deviceId } },
         }),
       )
     ).links;

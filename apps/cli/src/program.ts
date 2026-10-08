@@ -1,6 +1,9 @@
 import { SenvApiError, SenvNetworkError } from '@senv/api-client';
 import { ENVIRONMENT_NAMES, type EnvironmentName } from '@senv/core';
-import { Command, CommanderError, Option } from 'commander';
+import { Argument, Command, CommanderError, InvalidArgumentError, Option } from 'commander';
+import { runAgent } from './agent/agent.js';
+import { agentStatus, installAgent, uninstallAgent } from './agent/service.js';
+import { createRealServiceHost } from './agent/service-host.js';
 import { NotLoggedInError } from './auth/session.js';
 import { login, logout, whoami } from './commands/auth.js';
 import { diff, status } from './commands/compare.js';
@@ -8,6 +11,7 @@ import { doctor } from './commands/doctor.js';
 import { EXPORT_FORMATS, type ExportFormat, exportValues } from './commands/export.js';
 import { init } from './commands/init.js';
 import { get, list } from './commands/inspect.js';
+import { linkAdd, linkApprove, linkList, linkReject } from './commands/link.js';
 import { pull } from './commands/pull.js';
 import { run } from './commands/run.js';
 import { push, set } from './commands/write.js';
@@ -32,6 +36,14 @@ const USAGE_ERRORS = new Set([
   'commander.optionMissingArgument',
   'commander.missingMandatoryOptionValue',
 ]);
+
+function parseInterval(value: string): number {
+  const seconds = Number(value);
+  if (!Number.isInteger(seconds) || seconds < 10) {
+    throw new InvalidArgumentError('10 이상의 정수(초)여야 합니다');
+  }
+  return seconds;
+}
 
 const envOption = () =>
   new Option('--env <env>', '환경 (기본: senv.json의 defaultEnv)').choices(ENVIRONMENT_NAMES);
@@ -198,6 +210,50 @@ export async function main(argv: string[], options: MainOptions): Promise<number
     .action((opts: { env?: EnvironmentName; format: ExportFormat }) =>
       withContext(async (ctx) => exportValues(ctx, opts).then(() => 0)),
     );
+
+  program
+    .command('agent')
+    .description(
+      '로컬 자동 받기: 대시보드에 연결한 폴더에 local 값을 계속 반영한다 (install로 자동 시작)',
+    )
+    .addArgument(
+      new Argument(
+        '[action]',
+        'run(기본): 지금 실행, install·uninstall: 자동 시작 등록·해제, status: 상태',
+      )
+        .choices(['run', 'install', 'uninstall', 'status'])
+        .default('run'),
+    )
+    .option('--interval <seconds>', '확인 간격(초, 10 이상)', parseInterval, 30)
+    .action((action: 'run' | 'install' | 'uninstall' | 'status', opts: { interval: number }) =>
+      withContext(async (ctx) => {
+        if (action === 'run') await runAgent(ctx, { interval: opts.interval });
+        else if (action === 'install') await installAgent(ctx, createRealServiceHost());
+        else if (action === 'uninstall') await uninstallAgent(ctx, createRealServiceHost());
+        else await agentStatus(ctx, createRealServiceHost());
+        return 0;
+      }),
+    );
+
+  const link = program.command('link').description('이 PC의 로컬 자동 받기 연결을 보고 승인한다');
+  link
+    .command('list')
+    .description('이 PC의 연결과 상태')
+    .action(() => withContext(async (ctx) => linkList(ctx).then(() => 0)));
+  link
+    .command('approve')
+    .description('대시보드에서 추가한 연결을 이 PC에서 승인한다')
+    .argument('<id>', '연결 ID (senv link list)')
+    .action((id: string) => withContext(async (ctx) => linkApprove(ctx, id).then(() => 0)));
+  link
+    .command('reject')
+    .description('대시보드에서 추가한 연결을 거절해 지운다')
+    .argument('<id>', '연결 ID (senv link list)')
+    .action((id: string) => withContext(async (ctx) => linkReject(ctx, id).then(() => 0)));
+  link
+    .command('add')
+    .description('지금 폴더(senv.json)를 이 PC의 연결로 추가한다')
+    .action(() => withContext(async (ctx) => linkAdd(ctx).then(() => 0)));
 
   program
     .command('doctor')
