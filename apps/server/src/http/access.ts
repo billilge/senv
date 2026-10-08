@@ -13,6 +13,11 @@ export type AccessLevel = 'public' | 'pending' | 'active' | 'admin';
 export const ACCESS_KEY = 'senv:access';
 export const SESSION_COOKIE = 'senv_session';
 
+export const VIA_KEY = 'senv:via';
+
+/** CLI 토큰(Bearer)으로 온 요청만 받는다. 대시보드 세션이 탈취돼도 부를 수 없게 하는 경로에 붙인다 (결정 61) */
+export const CliTokenOnly = () => SetMetadata(VIA_KEY, 'token');
+
 export const Public = () => SetMetadata(ACCESS_KEY, 'public' satisfies AccessLevel);
 export const AllowPending = () => SetMetadata(ACCESS_KEY, 'pending' satisfies AccessLevel);
 export const AdminOnly = () => SetMetadata(ACCESS_KEY, 'admin' satisfies AccessLevel);

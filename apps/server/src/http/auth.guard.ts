@@ -7,7 +7,7 @@ import type { UserView } from '../auth/auth-service.js';
 import { SessionService } from '../auth/session-service.js';
 import type { ServerConfig } from '../config/server-config.js';
 import { AdminRequiredError } from '../users/users-service.js';
-import { ACCESS_KEY, type AccessLevel, SESSION_COOKIE } from './access.js';
+import { ACCESS_KEY, type AccessLevel, SESSION_COOKIE, VIA_KEY } from './access.js';
 import { ApiProblem } from './api-error.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -35,6 +35,14 @@ export class AuthGuard implements CanActivate {
     if (access === 'public') return true;
 
     const request = context.switchToHttp().getRequest<Request & { user?: UserView }>();
+    const tokenOnly =
+      this.reflector.getAllAndOverride<string | undefined>(VIA_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) === 'token';
+    if (tokenOnly && !request.headers.authorization?.startsWith('Bearer ')) {
+      throw new ApiProblem(403, 'cli_token_required', '이 요청은 senv CLI에서만 할 수 있습니다');
+    }
     const user = await this.authenticate(request);
     if (!user) throw new ApiProblem(401, 'unauthorized', '로그인이 필요합니다');
     if (access !== 'pending' && user.status !== 'active') {

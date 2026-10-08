@@ -19,6 +19,8 @@ import { RATE_LIMITS } from '../http/rate-limit.js';
 import { JobsService } from '../jobs/jobs-service.js';
 import { KeySchemaService } from '../key-schemas/key-schema-service.js';
 import { KeySchemasController } from '../key-schemas/key-schemas.controller.js';
+import { LocalLinksController } from '../local-links/local-links.controller.js';
+import { LocalLinksService } from '../local-links/local-links-service.js';
 import { ProjectsController } from '../projects/projects.controller.js';
 import { ProjectsService } from '../projects/projects-service.js';
 import { PublishService } from '../publishing/publish-service.js';
@@ -66,6 +68,7 @@ export class AppModule {
         RoleAssignmentsController,
         TargetsController,
         MappingsController,
+        LocalLinksController,
       ],
       providers: [
         { provide: APP_GUARD, useClass: AuthGuard },
@@ -140,6 +143,11 @@ export class AppModule {
             SERVER_CONFIG,
             CLOCK,
           ],
+        },
+        {
+          provide: LocalLinksService,
+          useFactory: (prisma: PrismaClient, now: Clock) => new LocalLinksService(prisma, now),
+          inject: [PrismaClient, CLOCK],
         },
         {
           provide: KeySchemaService,

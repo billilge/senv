@@ -1,4 +1,4 @@
-import { ENVIRONMENT_NAMES } from '@senv/core';
+import { ENVIRONMENT_NAMES, LOCAL_LINK_STATES } from '@senv/core';
 import { z } from 'zod';
 
 /** API 응답 스키마. OpenAPI 문서와 클라이언트 타입이 여기서 나온다 */
@@ -303,3 +303,40 @@ export const deviceAuthorizationSchema = z
     interval: z.number().int(),
   })
   .meta({ id: 'DeviceAuthorization' });
+
+export const agentDeviceSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    createdAt: isoDateTime,
+    lastSeenAt: isoDateTime.nullable().describe('에이전트가 마지막으로 연결을 조회한 시각'),
+  })
+  .meta({ id: 'AgentDevice' });
+
+export const agentDeviceListSchema = z
+  .object({ devices: z.array(agentDeviceSchema) })
+  .meta({ id: 'AgentDeviceList' });
+
+const versionPairSchema = z.object({ version: z.number().int(), sharedVersion: z.number().int() });
+
+export const localLinkSchema = z
+  .object({
+    id: z.string(),
+    device: z.object({ id: z.string(), name: z.string() }),
+    project: z.string(),
+    path: z.string().describe('기기의 절대 경로 (senv.json이 있는 폴더)'),
+    status: z.enum(['pending', 'active', 'paused']),
+    approvedAt: isoDateTime.nullable(),
+    current: versionPairSchema.describe('프로젝트와 공유 그룹의 현재 local 버전'),
+    lastWritten: versionPairSchema.extend({ at: isoDateTime }).nullable(),
+    lastState: z
+      .object({ state: z.enum(LOCAL_LINK_STATES), message: z.string().nullable(), at: isoDateTime })
+      .nullable(),
+    overwriteRequested: z.boolean(),
+    createdAt: isoDateTime,
+  })
+  .meta({ id: 'LocalLink' });
+
+export const localLinkListSchema = z
+  .object({ links: z.array(localLinkSchema) })
+  .meta({ id: 'LocalLinkList' });

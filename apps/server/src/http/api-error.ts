@@ -22,6 +22,15 @@ import {
   KeySchemaNotFoundError,
 } from '../key-schemas/key-schema-service.js';
 import {
+  DeviceNotFoundError,
+  InvalidDeviceNameError,
+  InvalidLocalPathError,
+  LocalLinkExistsError,
+  LocalLinkNotActiveError,
+  LocalLinkNotFoundError,
+  SharedGroupNotLinkableError,
+} from '../local-links/local-links-service.js';
+import {
   InvalidProjectNameError,
   ProjectNameTakenError,
   ProjectNotFoundError,
@@ -138,6 +147,13 @@ const RULES: Rule[] = [
   { type: ResourceAlreadyMappedError, status: 409, code: 'resource_already_mapped' },
   { type: SharedGroupNotDeployableError, status: 422, code: 'shared_not_deployable' },
   { type: ImportNotSupportedError, status: 422, code: 'import_not_supported' },
+  { type: DeviceNotFoundError, status: 404, code: 'device_not_found' },
+  { type: InvalidDeviceNameError, status: 422, code: 'invalid_device_name' },
+  { type: LocalLinkNotFoundError, status: 404, code: 'local_link_not_found' },
+  { type: LocalLinkExistsError, status: 409, code: 'local_link_exists' },
+  { type: LocalLinkNotActiveError, status: 409, code: 'local_link_not_active' },
+  { type: InvalidLocalPathError, status: 422, code: 'invalid_local_path' },
+  { type: SharedGroupNotLinkableError, status: 422, code: 'shared_group_not_linkable' },
   {
     type: PublishValidationError,
     status: 422,
