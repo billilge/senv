@@ -27,6 +27,12 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?}
       GITHUB_ORG: ${GITHUB_ORG:-billilge}
       SENV_BOOTSTRAP_ADMINS: ${SENV_BOOTSTRAP_ADMINS:-}
+      # .env.example 연결용 GitHub App (결정 73). 앞의 셋을 모두 넣어야 켜지고, 모두 비우면 꺼진다.
+      # worker는 쓰지 않는다
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+      GITHUB_APP_WEBHOOK_SECRET: ${GITHUB_APP_WEBHOOK_SECRET:-}
+      GITHUB_APP_SLUG: ${GITHUB_APP_SLUG:-}
     healthcheck:
       test:
         - CMD

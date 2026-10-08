@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 문서 상태 | v1.13 (M1 구현 완료·배포 준비, M1.1 구현 완료, M1.2 계획 확정. 진행 상황은 15장) |
+| 문서 상태 | v1.14 (M1 구현 완료·배포 준비, M1.1·M1.2 구현 완료. 진행 상황은 15장) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.13: M1.2 `.env.example` 연결 계획(결정 73~77) · v1.12: 사용 가이드 페이지(결정 72) · v1.11: M1.1 로컬 자동 받기 구현과 세부 결정 68~71, Spring Boot properties 형식(결정 65), senv 플러그인(결정 66·67) · v1.10: M1.1 로컬 자동 받기(결정 60~64), compose 파일 이름(결정 59) · v1.9: 배포 대상 연동을 M1으로(결정 46), 결정 43~45 기록 · v1.8: M1 범위 조정(결정 39) · v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.14: M1.2 `.env.example` 연결 구현과 세부 결정 78 · v1.13: M1.2 `.env.example` 연결 계획(결정 73~77) · v1.12: 사용 가이드 페이지(결정 72) · v1.11: M1.1 로컬 자동 받기 구현과 세부 결정 68~71, Spring Boot properties 형식(결정 65), senv 플러그인(결정 66·67) · v1.10: M1.1 로컬 자동 받기(결정 60~64), compose 파일 이름(결정 59) · v1.9: 배포 대상 연동을 M1으로(결정 46), 결정 43~45 기록 · v1.8: M1 범위 조정(결정 39) · v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -367,6 +367,8 @@ flowchart LR
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub OAuth App 자격 증명 |
 | `GITHUB_ORG` | 로그인 기준이 되는 GitHub 조직 이름 (`billilge`) |
 | `SENV_BOOTSTRAP_ADMINS` | 로그인하자마자 관리자가 되는 GitHub 사용자명 목록 (쉼표 구분). 첫 관리자를 정하는 데 쓴다 |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET` | `.env.example` 연결용 GitHub App (결정 73). 셋 다 있으면 켜지고 모두 비우면 꺼진다. 개인 키는 `\n` 한 줄로도 넣는다. `api`에만 넣는다 |
+| `GITHUB_APP_SLUG` | (선택) 대시보드의 App 설치 링크 `https://github.com/apps/<slug>/installations/new` |
 
 KEK를 잃으면 모든 스냅샷을 복구할 수 없다. 관리자 2명이 각자 비밀번호 관리자에 따로 보관해, Coolify 서버 밖에 최소 한 벌을 둔다.
 
@@ -1041,6 +1043,7 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 75 | 매트릭스의 스키마 키 | 값이 없어도 스키마의 모든 키(필수가 아닌 키 포함)를 매트릭스 행으로 보인다. 빈 칸은 지금처럼 필수면 빨간 "누락", 아니면 노란 "누락"이다. 프로젝트 목록의 누락 칸 수(결정 44)도 같은 기준으로 센다 | 7.1 |
 | 76 | `.env.example` 연결 권한·보안 | 연결 만들기·바꾸기·끊기는 관리자, 상태 보기·지금 확인은 활성 멤버다. 웹훅(`/api/v1/github/webhook`)은 인증 대신 `X-Hub-Signature-256`을 시간 일정 비교로 확인하고(틀리면 401), 웹훅 경로만 본문을 5MB까지 받는다. 예시 파일은 64KB까지 읽는다. App 개인 키는 `api`에만 둔다. 웹훅으로 등록한 키의 `updated_by`는 `github:<푸시한 사람>`이다 | 9.1 |
 | 77 | `.env.example` 연결 단계 | M1.1 다음, M2 앞의 M1.2로 진행한다 | 12 |
+| 78 | `.env.example` 연결 구현 세부 | 같은 연결의 확인은 이름 잠금으로 하나씩 하고, 겹치면 10초까지 기다린다(`withNamedLock`에 기다리기를 더함). 경로 앞의 `/`·`./`는 떼고, 폴더·`..`·512자 넘는 경로는 막는다. 연결을 바꾸면 이전 파일의 기록을 지우고 처음부터 읽어, 이전 파일의 키를 빠진 키로 알리지 않는다. 저장소·설치 id는 32비트를 넘을 수 있어 BIGINT로 둔다. 구분선 주석 줄(같은 글자 `─ - = * ~ # _`가 네 개 이상 이어짐)은 설명에서 뺀다. 웹훅은 OpenAPI에 넣지 않고, JSON 파서보다 먼저 웹훅 경로만 본문을 Buffer로 읽는다. push가 아닌 이벤트와 기본 브랜치가 아닌 push에도 200 `{ checked: 0 }`으로 답한다. App 설정이 없을 때 상태 조회는 `enabled: false`로 답하고, 저장소 목록·연결·확인·웹훅만 404다. 대시보드는 공유 그룹에 연결 상자를 두지 않고 관리자에게 "연결 바꾸기"를 둔다. 목업 모드는 server를 미리 연결해 두고 "지금 확인"으로 새 키가 등록되는 흐름을 보여준다 | 4.5, 7.1, 11 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
@@ -1063,22 +1066,22 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 
 ## 15. 구현 현황
 
-기준: 2026-10-08, 브랜치 `main`, 커밋 111개. 모든 커밋은 `pnpm verify`(Biome, 타입 검사, 빌드, 테스트)를 통과한 뒤에 만들었다. M1 범위(결정 39·46으로 늘어난 범위 포함)와 M1.1 로컬 자동 받기(결정 60~64, 68~71)의 구현은 모두 끝났고, 남은 것은 운영 준비다.
+기준: 2026-10-08, 브랜치 `main`, 커밋 125개. 모든 커밋은 `pnpm verify`(Biome, 타입 검사, 빌드, 테스트)를 통과한 뒤에 만들었다. M1 범위(결정 39·46으로 늘어난 범위 포함), M1.1 로컬 자동 받기(결정 60~64, 68~71), M1.2 `.env.example` 연결(결정 73~78)의 구현은 모두 끝났고, 남은 것은 운영 준비다.
 
 ### 15.1 테스트
 
 | 패키지 | 테스트 수 | 범위 |
 | --- | --- | --- |
-| `packages/core` | 218 | dotenv, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙, 버전 조사, 배포 대상 계획·반영 후 동작, properties 형식, 로컬 자동 받기 쓰기 판단·경로 검증 |
-| `apps/server` | 395 | 단위 + Testcontainers MySQL 통합: 암호화, 게시·버전 기록·되돌리기, 키 스키마, 목록 요약, 인증·역할 미리 지정, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, 배포 이미지 구성, 배포 대상 연결·매핑·동기화·드리프트·가져오기, 작업 큐, worker, 로컬 연결·에이전트 API(CLI 토큰 전용) |
+| `packages/core` | 230 | dotenv, 키 검증, 공유 참조, diff·변경 집합, 노출 검사, 이름 규칙, 버전 조사, 배포 대상 계획·반영 후 동작, properties 형식, 로컬 자동 받기 쓰기 판단·경로 검증, `.env.example` 읽기·등록 계획 |
+| `apps/server` | 429 | 단위 + Testcontainers MySQL 통합: 암호화, 게시·버전 기록·되돌리기, 키 스키마, 목록 요약, 인증·역할 미리 지정, 디바이스 로그인, 토큰 회전, HTTP API, 속도 제한, 대시보드 제공, 배포 이미지 구성, 배포 대상 연결·매핑·동기화·드리프트·가져오기, 작업 큐, worker, 로컬 연결·에이전트 API(CLI 토큰 전용), `.env.example` 연결·GitHub App 설정·JWT·웹훅 서명 |
 | `apps/cli` | 162 | 명령별 동작 (가짜 API): login·init·pull·run·list·get·status·diff·set·push·export·doctor·link, 노출 검사, 값 파일 쓰기, 에이전트 주기·반복·자동 시작(launchd·systemd 파일과 명령) |
 | `packages/api-client` | 9 | 클라이언트 생성, 오류 변환 |
 | `packages/target-testkit` | 9 | 계약 테스트를 메모리 제공자에 적용 |
 | `packages/target-coolify` | 12 | 계약 테스트와 Coolify API 대응 (가짜 Coolify 서버) |
-| `apps/dashboard` | 117 | Testing Library 화면 흐름(내 로컬 연결, 가이드 포함), 목업 서버 |
+| `apps/dashboard` | 129 | Testing Library 화면 흐름(내 로컬 연결, `.env.example` 연결, 가이드 포함), 목업 서버 |
 | `e2e` (Vitest) | 2 | 실제 서버 + CLI 전체 흐름 (login → whoami → init → pull → run → logout), 로컬 자동 받기 (연결 → PC 승인 → 쓰기 → 새 게시 반영 → 직접 고친 파일 보호·덮어쓰기) |
 | `e2e` (Playwright) | 1 | 로컬 Chrome으로 프로젝트 만들기 → 게시 → 버전 기록 → 배포 대상 연결 → 매핑 → 동기화 (`pnpm test:browser`) |
-| 합계 | 925 | |
+| 합계 | 983 | |
 
 R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 테스트하지 않는다. 메모리 저장소, 가짜 GitHub, 가짜 Coolify 서버·메모리 제공자로 대신한다.
 
@@ -1098,6 +1101,7 @@ R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 �
 | 검사·배포 | GitHub Actions CI(검사, 브라우저 E2E, 이미지 검사), CLI 배포 워크플로 |
 | M1.1 로컬 자동 받기 | 기기·로컬 연결 저장과 API(에이전트 API는 CLI 토큰 전용), `senv agent`(주기·자동 시작 install·uninstall·status), `senv link list·approve·reject·add`, 대시보드 "내 로컬 연결"과 프로젝트 local 열 반영 표시, 목업 모드 |
 | Spring Boot | `senv.json` `format: properties`(pull·diff·push·init·export), README 사용법 |
+| M1.2 `.env.example` 연결 | GitHub App 설정(JWT, 웹훅 서명), 프로젝트별 예시 파일 연결과 확인(스키마에 없는 키만 선택 키로 등록, 값은 버림), 기본 브랜치 push 웹훅, 연결 API, 매트릭스·목록 요약에 모든 스키마 키, 대시보드 키 스키마 탭의 연결 상자·가이드, 목업 모드 |
 
 ### 15.3 M1에서 남은 것
 
@@ -1108,6 +1112,7 @@ R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 �
 | GitHub Actions(CI·브라우저 E2E·이미지 검사) 통과 확인. main의 첫 실행에서 대시보드 테스트 대기 시간(느린 러너)과 Dockerfile의 `target-coolify` 빌드 결과 누락을 잡아 고쳤고(서버 운영 의존성과 Dockerfile 복사 줄을 대조하는 단위 테스트를 더함), 그 뒤로 통과한다. CLI 0.1.0을 GitHub Packages에 배포했다 | 완료 (2026-10-08) |
 | 운영 중인 Coolify 버전에서 env API 필드 이름(`is_buildtime` 등)과 재배포 API가 결정 51과 같은지 확인 (14.1) | 확인 필요 |
 | 운영 준비: 14.1의 남은 항목 (DNS, OAuth App 승인, org 2단계 인증, MySQL 접속·백업, R2 버킷·토큰, KEK 생성·보관, Coolify API 토큰) | 담당자 작업 |
+| M1.2 운영 준비: billilge org에 GitHub App 만들기(Contents·Metadata 읽기, Push 이벤트, 웹훅 `https://senv.stream.billilge.site/api/v1/github/webhook`), `.env.example`이 있는 저장소에만 설치, Coolify `api`에 `GITHUB_APP_*` 입력, 실제 GitHub로 연결 → main 푸시 → 등록을 한 번 확인 (`docs/plans/env-example-sync.md` 7장) | 담당자 작업 |
 
 ### 15.4 PRD 원안과 다르게 구현한 것
 
@@ -1127,6 +1132,7 @@ R2(S3) 어댑터, 실제 GitHub HTTP 클라이언트, 실제 Coolify는 자동 �
 | Coolify 재배포 API | `POST /deploy?uuid=` | `GET /deploy?uuid=` | Coolify API 문서의 메서드를 따른다 (결정 51) |
 | Coolify 계약 테스트 | 실제 응답 녹화 | 가짜 Coolify 서버 | 실제 Coolify에 붙지 않는다 (결정 46) |
 | 테스트 MySQL 이미지 | `mysql:8.4` | `docker.io/library/mysql:8.4` | Docker Desktop이 짧은 이름을 가끔 못 찾아 testcontainers가 내려받으려다 멈췄다 |
+| GitHub 웹훅 응답 | push만 처리하고 ping은 200, 나머지는 204 (`docs/plans/env-example-sync.md` 5.2) | 모든 이벤트에 200 `{ checked }` (push가 아니거나 기본 브랜치가 아니면 0) | GitHub는 2xx면 전달 성공으로 보므로 응답 형식을 하나로 둔다 (결정 78) |
 
 ---
 
