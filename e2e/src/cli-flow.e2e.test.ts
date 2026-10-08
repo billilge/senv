@@ -51,7 +51,8 @@ async function approveInBrowser(verificationUrl: string, aliceId: string) {
 
 /** 실제 서버에 붙는 CLI 컨텍스트. 대기는 서버 시계를 앞으로 돌린다 */
 async function cliContext(cwd: string, aliceId: string): Promise<CliContext> {
-  const credentials = new FileCredentialStore(await makeTempDir());
+  const configDir = await makeTempDir();
+  const credentials = new FileCredentialStore(configDir);
   const anonymousApi = createSenvClient({ baseUrl });
   const session = new CliSession({
     apiUrl: baseUrl,
@@ -79,6 +80,9 @@ async function cliContext(cwd: string, aliceId: string): Promise<CliContext> {
       now = new Date(now.getTime() + ms);
     },
     now: () => now,
+    configDir,
+    interactive: false,
+    hostname: 'e2e',
   };
 }
 
