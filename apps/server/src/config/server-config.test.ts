@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadServerConfig, loadWorkerConfig } from './server-config.js';
 
@@ -138,6 +138,66 @@ describe('loadServerConfig', () => {
       expect(text).not.toContain('db-password-123');
       expect(text).not.toContain('short-session-secret');
     }
+  });
+
+  describe('GitHub App (.env.example 연결, 결정 73)', () => {
+    const pem = generateKeyPairSync('rsa', { modulusLength: 2048 })
+      .privateKey.export({ type: 'pkcs1', format: 'pem' })
+      .toString()
+      .trim();
+    const app = {
+      GITHUB_APP_ID: '123456',
+      GITHUB_APP_PRIVATE_KEY: pem,
+      GITHUB_APP_WEBHOOK_SECRET: 'hook-secret',
+    };
+    const ALL_REQUIRED =
+      'GitHub App을 쓰려면 GITHUB_APP_ID·GITHUB_APP_PRIVATE_KEY·GITHUB_APP_WEBHOOK_SECRET이 모두 있어야 합니다';
+
+    it('세 변수가 모두 없으면 꺼진다', () => {
+      expect(loadServerConfig(validEnv()).githubApp).toBeNull();
+    });
+
+    it('세 변수가 모두 있으면 켜진다. 한 줄로 넣은 개인 키의 \\n은 줄바꿈으로 읽는다', () => {
+      expect(loadServerConfig(validEnv(app)).githubApp).toEqual({
+        appId: '123456',
+        privateKey: pem,
+        webhookSecret: 'hook-secret',
+        slug: null,
+      });
+      const oneLine = validEnv({
+        ...app,
+        GITHUB_APP_PRIVATE_KEY: pem.replaceAll('\n', '\\n'),
+        GITHUB_APP_SLUG: 'senv-stream',
+      });
+      expect(loadServerConfig(oneLine).githubApp).toMatchObject({
+        privateKey: pem,
+        slug: 'senv-stream',
+      });
+    });
+
+    it('일부만 있으면 빠진 변수를 알린다', () => {
+      expect(problemsOf(validEnv({ GITHUB_APP_ID: '123456' }))).toEqual([
+        `GITHUB_APP_PRIVATE_KEY: ${ALL_REQUIRED}`,
+        `GITHUB_APP_WEBHOOK_SECRET: ${ALL_REQUIRED}`,
+      ]);
+    });
+
+    it('형식이 틀리면 알리고, 값은 메시지에 담지 않는다', () => {
+      const problems = problemsOf(
+        validEnv({
+          ...app,
+          GITHUB_APP_ID: 'abc',
+          GITHUB_APP_PRIVATE_KEY: 'not-a-pem-secret',
+          GITHUB_APP_SLUG: 'Bad Slug',
+        }),
+      );
+      expect(problems).toEqual([
+        'GITHUB_APP_ID: 숫자여야 합니다',
+        'GITHUB_APP_PRIVATE_KEY: PEM 형식의 개인 키여야 합니다',
+        'GITHUB_APP_SLUG: 소문자·숫자·하이픈이어야 합니다',
+      ]);
+      expect(problems.join('\n')).not.toContain('not-a-pem-secret');
+    });
   });
 });
 

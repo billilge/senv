@@ -30,6 +30,7 @@ const config: ServerConfig = {
   github: { clientId: 'e2e', clientSecret: 'e2e', org: 'billilge' },
   bootstrapAdmins: [],
   trustProxyHops: 0,
+  githubApp: null,
 };
 const prisma = createPrismaClient(databaseUrl);
 const app = await createApp(

@@ -1,3 +1,4 @@
+import { createPrivateKey } from 'node:crypto';
 import { z } from 'zod';
 import type { Keyring } from '../crypto/envelope.js';
 import { KeyringConfigError, loadKeyring } from '../crypto/keyring.js';
@@ -24,6 +25,17 @@ export interface ServerConfig {
   bootstrapAdmins: string[];
   /** 앞에 있는 프록시 수. 속도 제한이 X-Forwarded-For에서 클라이언트 IP를 읽을 때 쓴다 */
   trustProxyHops: number;
+  /** .env.example 연결용 GitHub App. 설정하지 않으면 기능이 꺼진다 (결정 73) */
+  githubApp: GitHubAppConfig | null;
+}
+
+export interface GitHubAppConfig {
+  appId: string;
+  /** PEM 개인 키 */
+  privateKey: string;
+  webhookSecret: string;
+  /** 대시보드의 App 설치 링크에 쓴다 */
+  slug: string | null;
 }
 
 /** 부트스트랩 환경변수 문제. 변수 이름과 이유만 담고 값은 담지 않는다 */
@@ -40,6 +52,13 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 const GITHUB_LOGIN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 
 const required = () => z.string().trim().min(1, { error: '값이 없습니다', abort: true });
+
+/** 셋 다 있으면 GitHub App을 켜고, 하나도 없으면 끈다 */
+const GITHUB_APP_VARS = [
+  'GITHUB_APP_ID',
+  'GITHUB_APP_PRIVATE_KEY',
+  'GITHUB_APP_WEBHOOK_SECRET',
+] as const;
 
 const databaseUrl = required().refine(
   (value) => value.startsWith('mysql://') && URL.canParse(value),
@@ -80,6 +99,25 @@ const envSchema = z.object({
     .refine((logins) => logins.every((login) => GITHUB_LOGIN.test(login)), {
       error: '쉼표로 구분한 GitHub 사용자명 목록이어야 합니다',
     }),
+  GITHUB_APP_ID: z
+    .string()
+    .trim()
+    .refine((value) => value === '' || /^\d+$/.test(value), { error: '숫자여야 합니다' }),
+  GITHUB_APP_PRIVATE_KEY: z
+    .string()
+    .trim()
+    // Coolify에 한 줄로 넣을 수 있게 \n도 줄바꿈으로 읽는다
+    .transform((value) => value.replaceAll('\\n', '\n'))
+    .refine((value) => value === '' || isPrivateKey(value), {
+      error: 'PEM 형식의 개인 키여야 합니다',
+    }),
+  GITHUB_APP_WEBHOOK_SECRET: z.string().trim(),
+  GITHUB_APP_SLUG: z
+    .string()
+    .trim()
+    .refine((value) => value === '' || /^[a-z0-9-]+$/.test(value), {
+      error: '소문자·숫자·하이픈이어야 합니다',
+    }),
 });
 
 /**
@@ -111,6 +149,16 @@ export function loadServerConfig(env: Record<string, string | undefined>): Serve
     problems.push(error.message);
   }
 
+  const appVars = GITHUB_APP_VARS.filter((name) => (env[name] ?? '').trim() !== '');
+  if (appVars.length > 0 && appVars.length < GITHUB_APP_VARS.length) {
+    for (const name of GITHUB_APP_VARS) {
+      if (appVars.includes(name)) continue;
+      problems.push(
+        `${name}: GitHub App을 쓰려면 ${GITHUB_APP_VARS.join('·')}이 모두 있어야 합니다`,
+      );
+    }
+  }
+
   if (!parsed.success || !keyring || problems.length > 0) throw new ConfigError(problems);
 
   const vars = parsed.data;
@@ -133,6 +181,15 @@ export function loadServerConfig(env: Record<string, string | undefined>): Serve
     },
     bootstrapAdmins: vars.SENV_BOOTSTRAP_ADMINS.map((login) => login.toLowerCase()),
     trustProxyHops: vars.TRUST_PROXY === '' ? 1 : Number(vars.TRUST_PROXY),
+    githubApp:
+      vars.GITHUB_APP_ID === ''
+        ? null
+        : {
+            appId: vars.GITHUB_APP_ID,
+            privateKey: vars.GITHUB_APP_PRIVATE_KEY,
+            webhookSecret: vars.GITHUB_APP_WEBHOOK_SECRET,
+            slug: vars.GITHUB_APP_SLUG || null,
+          },
   };
 }
 
@@ -141,6 +198,15 @@ function splitList(value: string): string[] {
     .split(',')
     .map((item) => item.trim())
     .filter((item) => item !== '');
+}
+
+function isPrivateKey(value: string): boolean {
+  try {
+    createPrivateKey(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isHttpUrl(value: string): boolean {

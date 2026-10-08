@@ -38,6 +38,7 @@ export async function createTestApp(
     bootstrapAdmins: options.bootstrapAdmins ?? ['admin'],
     // 테스트는 X-Forwarded-For로 클라이언트 IP를 바꿔 가며 보낸다
     trustProxyHops: 1,
+    githubApp: null,
   };
 
   const app: INestApplication = await createApp(
