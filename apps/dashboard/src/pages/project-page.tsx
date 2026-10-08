@@ -16,6 +16,7 @@ import { matrixNote } from '../local/link-status';
 import { useLocalLinks } from '../local/queries';
 import { CopyDialog } from '../project/copy-dialog';
 import { EnvironmentEditor } from '../project/environment-editor';
+import { ExampleSourcePanel } from '../project/example-source';
 import { KeySchemaPanel } from '../project/key-schema';
 import { Matrix } from '../project/matrix';
 import { ProjectTargets } from '../project/project-targets';
@@ -106,7 +107,10 @@ export function ProjectPage({
       {tab === 'values' ? (
         <ProjectValues project={project} kind={kind} envs={envs} />
       ) : tab === 'schema' ? (
-        <KeySchemaPanel project={project} envs={envs} />
+        <Stack gap="normal">
+          {kind === 'app' && <ExampleSourcePanel project={project} />}
+          <KeySchemaPanel project={project} envs={envs} />
+        </Stack>
       ) : tab === 'targets' ? (
         <ProjectTargets project={project} envs={envs} />
       ) : (

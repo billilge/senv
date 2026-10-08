@@ -4,6 +4,7 @@ import {
   applyChangeSet,
   type ChangeSet,
   createChangeSet,
+  diffKeyNames,
   diffVariables,
   ENVIRONMENT_NAMES,
   type EnvironmentName,
@@ -14,11 +15,22 @@ import {
   isValidProjectName,
   isValidPublicPrefix,
   matchesKeyFilter,
+  parseEnvExample,
+  planExampleImport,
   resolveSharedReferences,
   SHARED_PROJECT_NAME,
   validateEnvironment,
   versionRo,
 } from '@senv/core';
+import {
+  exampleFileUrl,
+  exampleSourceView,
+  initialExampleSources,
+  MOCK_EXAMPLE_FILES,
+  MOCK_INSTALL_URL,
+  MOCK_REPOSITORIES,
+  type MockExampleSource,
+} from './mock-example-source';
 import { deviceView, initialLocal, localLinkView, type MockLocalState } from './mock-local';
 import {
   connectionView,
@@ -80,6 +92,8 @@ export interface MockState {
   targets?: MockTargetsState;
   /** 로컬 자동 받기 (M1.1). 예전에 저장한 목업 데이터에는 없을 수 있다 */
   local?: MockLocalState;
+  /** 프로젝트별 .env.example 연결 (M1.2). 예전에 저장한 목업 데이터에는 없을 수 있다 */
+  exampleSources?: Record<string, MockExampleSource>;
 }
 
 const schemaKey = (key: string, fields: Partial<KeySchema> = {}): KeySchema => ({
@@ -384,6 +398,12 @@ export class MockServer {
       return this.schema(me, method, name, part, key, body);
     }
 
+    if (
+      path === '/api/v1/github/repositories' ||
+      /^\/api\/v1\/projects\/[^/]+\/example-source(\/check)?$/.test(path)
+    ) {
+      return this.exampleRoutes(me, method, path, body);
+    }
     if (path.startsWith('/api/v1/targets') || /^\/api\/v1\/projects\/[^/]+\/targets$/.test(path)) {
       return this.targetRoutes(me, method, path, body);
     }
@@ -516,6 +536,134 @@ export class MockServer {
       return new Reply(204);
     }
     return problem(404, 'not_found', `목업에 없는 경로: ${method} ${path}`);
+  }
+
+  /** .env.example 연결 (M1.2). 서버처럼 키 이름만 읽어 스키마에 없는 키를 선택 키로 등록한다 */
+  private exampleRoutes(
+    me: User,
+    method: string,
+    path: string,
+    body: Record<string, unknown>,
+  ): Reply {
+    const forbidden =
+      me.role === 'admin' ? null : problem(403, 'admin_required', '관리자만 할 수 있습니다');
+    if (path === '/api/v1/github/repositories' && method === 'GET') {
+      return forbidden ?? new Reply(200, { repositories: MOCK_REPOSITORIES });
+    }
+    const [, name = '', check] =
+      path.match(/^\/api\/v1\/projects\/([^/]+)\/example-source(\/check)?$/) ?? [];
+    const found = this.state.projects.find((candidate) => candidate.name === name);
+    if (!found) return problem(404, 'project_not_found', `프로젝트가 없습니다: ${name}`);
+    const current = (this.state.exampleSources ?? initialExampleSources())[name];
+    const save = (next: MockExampleSource | null) =>
+      this.update((state) => {
+        const sources = { ...(state.exampleSources ?? initialExampleSources()) };
+        if (next) sources[name] = next;
+        else delete sources[name];
+        state.exampleSources = sources;
+      });
+    const notLinked = () =>
+      problem(404, 'example_source_not_found', `${name}에 연결된 .env.example이 없습니다`);
+
+    if (check && method === 'POST') {
+      if (!current) return notLinked();
+      const next = this.readExample(name, current);
+      save(next);
+      return new Reply(200, exampleSourceView(next));
+    }
+    if (!check && method === 'GET') {
+      return new Reply(200, {
+        enabled: true,
+        installUrl: MOCK_INSTALL_URL,
+        source: current ? exampleSourceView(current) : null,
+      });
+    }
+    if (forbidden) return forbidden;
+    if (!check && method === 'DELETE') {
+      if (!current) return notLinked();
+      save(null);
+      return new Reply(204);
+    }
+    if (!check && method === 'PUT') {
+      if (found.kind === 'shared') {
+        return problem(
+          422,
+          'shared_group_no_example',
+          '공유 그룹에는 .env.example을 연결하지 않습니다. 그 값을 쓰는 프로젝트에 연결하세요',
+        );
+      }
+      const repo = MOCK_REPOSITORIES.find((candidate) => candidate.id === body.repoId);
+      if (!repo) {
+        return problem(
+          422,
+          'repository_not_installed',
+          'GitHub App이 설치된 저장소가 아닙니다. 저장소에 App을 설치하세요',
+        );
+      }
+      const filePath = String(body.path ?? '')
+        .trim()
+        .replace(/^\/+/, '')
+        .replace(/^\.\//, '');
+      if (MOCK_EXAMPLE_FILES[`${repo.fullName}:${filePath}`] === undefined) {
+        return problem(422, 'example_not_found', `저장소 기본 브랜치에 ${filePath}이(가) 없습니다`);
+      }
+      const next = this.readExample(name, {
+        repoId: repo.id,
+        repoFullName: repo.fullName,
+        path: filePath,
+        fileUrl: exampleFileUrl(repo.fullName, filePath),
+        lastResult: null,
+        lastMessage: null,
+        lastCheckedAt: null,
+        keys: [],
+        lastAdded: [],
+        lastRemoved: [],
+        skipped: [],
+        lastText: null,
+      });
+      save(next);
+      return new Reply(200, exampleSourceView(next));
+    }
+    return problem(404, 'not_found', `목업에 없는 경로: ${method} ${path}`);
+  }
+
+  /** 기본 브랜치의 예시 파일을 읽어 스키마에 없는 키를 등록한다. 파일이 그대로면 확인 시각만 바꾼다 */
+  private readExample(name: string, source: MockExampleSource): MockExampleSource {
+    const now = new Date().toISOString();
+    const text = MOCK_EXAMPLE_FILES[`${source.repoFullName}:${source.path}`];
+    if (text === undefined) {
+      return {
+        ...source,
+        lastResult: 'not_found',
+        lastMessage: `저장소 기본 브랜치에 ${source.path}이(가) 없습니다`,
+        lastCheckedAt: now,
+      };
+    }
+    if (text === source.lastText) {
+      return { ...source, lastResult: 'ok', lastMessage: null, lastCheckedAt: now };
+    }
+    const parsed = parseEnvExample(text);
+    const schema = this.schemaOf(name);
+    const added = planExampleImport(parsed.entries, schema.keys, schema.publicPrefixes).map(
+      (entry) =>
+        schemaKey(entry.key, { visibility: entry.visibility, description: entry.description }),
+    );
+    this.update((state) => {
+      const keys = [...schema.keys, ...added].sort((a, b) => a.key.localeCompare(b.key));
+      state.schemas = { ...state.schemas, [name]: { ...schema, keys } };
+    });
+    const keys = parsed.entries.map((entry) => entry.key);
+    return {
+      ...source,
+      lastResult: 'ok',
+      lastMessage: null,
+      lastCheckedAt: now,
+      keys: [...keys].sort(),
+      lastAdded: added.map((entry) => entry.key).sort(),
+      lastRemoved: diffKeyNames(source.keys, keys).removed,
+      skipped: parsed.skipped,
+      lastText: text,
+    };
   }
 
   private localState(): MockLocalState {

@@ -61,6 +61,23 @@ export function useKeySchema(project: string) {
   });
 }
 
+export type ExampleSource = ApiSchemas['ExampleSource'];
+
+export const exampleSourceKey = (project: string) =>
+  ['project', project, 'example-source'] as const;
+
+/** .env.example 연결 상태와 GitHub App 설정 여부 (결정 73~76) */
+export function useExampleSource(project: string) {
+  const api = useApi();
+  return useQuery({
+    queryKey: exampleSourceKey(project),
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/v1/projects/{project}/example-source', { params: { path: { project } } }),
+      ),
+  });
+}
+
 export function useVersions(project: string, env: string) {
   const api = useApi();
   return useQuery({

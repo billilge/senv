@@ -379,4 +379,78 @@ describe('목업 서버', () => {
       '이 PC에서 승인해야 씁니다',
     ]);
   });
+
+  describe('.env.example 연결 (결정 73~76)', () => {
+    const SOURCE = '/api/v1/projects/server/example-source';
+
+    it('server는 이미 연결되어 있고, 지금 확인하면 예시에 새로 생긴 키를 선택 키로 등록한다', async () => {
+      const { call } = setup();
+      expect((await call('GET', SOURCE)).body).toMatchObject({
+        enabled: true,
+        installUrl: expect.stringContaining('github.com/apps/'),
+        source: { repoFullName: 'billilge/stream-server', lastAdded: ['REDIS_URL'] },
+      });
+
+      const checked = await call('POST', `${SOURCE}/check`);
+      expect(checked.body).toMatchObject({ lastResult: 'ok', lastAdded: ['PAYMENT_SECRET_KEY'] });
+      const schema = (await call('GET', '/api/v1/projects/server/schema')).body;
+      expect(schema.keys).toContainEqual(
+        expect.objectContaining({
+          key: 'PAYMENT_SECRET_KEY',
+          required: false,
+          visibility: 'secret',
+          description: '결제 연동 비밀 키',
+        }),
+      );
+
+      // 다시 확인해도 파일이 그대로면 결과를 유지한다
+      expect((await call('POST', `${SOURCE}/check`)).body.lastAdded).toEqual([
+        'PAYMENT_SECRET_KEY',
+      ]);
+    });
+
+    it('관리자는 저장소를 골라 연결하고 끊는다. 공개 접두사 키는 public으로 등록한다', async () => {
+      const { call } = setup();
+      const repositories = (await call('GET', '/api/v1/github/repositories')).body.repositories;
+      const web = repositories.find((repo: { fullName: string }) => repo.fullName.endsWith('web'));
+
+      const linked = await call('PUT', '/api/v1/projects/web/example-source', {
+        repoId: web.id,
+        path: '.env.example',
+      });
+      expect(linked.body).toMatchObject({ lastResult: 'ok', lastAdded: ['VITE_SENTRY_DSN'] });
+      expect((await call('GET', '/api/v1/projects/web/schema')).body.keys).toContainEqual(
+        expect.objectContaining({ key: 'VITE_SENTRY_DSN', visibility: 'public' }),
+      );
+
+      expect(
+        (await call('PUT', '/api/v1/projects/web/example-source', { repoId: web.id, path: 'nope' }))
+          .body.code,
+      ).toBe('example_not_found');
+      expect(
+        (
+          await call('PUT', '/api/v1/projects/shared/example-source', {
+            repoId: web.id,
+            path: '.env.example',
+          })
+        ).body.code,
+      ).toBe('shared_group_no_example');
+
+      expect((await call('DELETE', '/api/v1/projects/web/example-source')).status).toBe(204);
+      expect((await call('GET', '/api/v1/projects/web/example-source')).body.source).toBeNull();
+    });
+
+    it('멤버는 연결하거나 저장소 목록을 볼 수 없다', async () => {
+      const { call } = setup({ persona: 'member' });
+      expect((await call('GET', '/api/v1/github/repositories')).status).toBe(403);
+      expect(
+        (
+          await call('PUT', '/api/v1/projects/web/example-source', {
+            repoId: 1,
+            path: '.env.example',
+          })
+        ).status,
+      ).toBe(403);
+    });
+  });
 });

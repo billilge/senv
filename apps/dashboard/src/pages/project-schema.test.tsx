@@ -39,6 +39,10 @@ function server(role: 'member' | 'admin' = 'member') {
           }),
         ],
       },
+    })
+    .reply('GET', '/api/v1/projects/web/example-source', {
+      status: 200,
+      body: { enabled: false, installUrl: null, source: null },
     });
   for (const env of ENVS) {
     api.reply('GET', `/api/v1/projects/web/envs/${env}`, {
