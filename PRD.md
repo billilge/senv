@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 문서 상태 | v1.9 (M1 구현 중, 진행 상황은 15장) |
+| 문서 상태 | v1.10 (M1 구현 완료·배포 준비, M1.1 계획 확정. 진행 상황은 15장) |
 | 작성일 | 2026-10-07 |
-| 변경 이력 | v1.9: 배포 대상 연동을 M1으로(결정 46), 결정 43~45 기록 · v1.8: M1 범위 조정(결정 39) · v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
+| 변경 이력 | v1.10: M1.1 로컬 자동 받기(결정 60~64), compose 파일 이름(결정 59) · v1.9: 배포 대상 연동을 M1으로(결정 46), 결정 43~45 기록 · v1.8: M1 범위 조정(결정 39) · v1.7: 15장 구현 현황 추가, 실제 구현에 맞춰 기술 스택·모노레포 구조 수정, 결정 35~38(다크 모드, 레이아웃, 목업 모드, 속도 제한 수치) 추가 · v1.6: 대시보드 편집·표시·테스트 결정 추가 · v1.5: API 경로·CSRF·오류 형식, CLI 세부 결정 추가 · v1.4: 첫 관리자 지정, M1 권한 두 단계, 토큰 접두사, 세션 기간 확정 · v1.3: 환경을 local·development·production으로 고정, 공유 그룹은 특수 프로젝트, 이름 규칙 확정 · v1.2: NestJS 12(ESM 전용)에 맞춰 빌드·검증 스택 수정 · v1.1: 대시보드 디자인 시스템을 Primer로 확정 · v1.0: 결정사항 확정(14장), 배포 대상 제공자 추상화 추가 · v0.4: 로그인을 GitHub OAuth 하나로 고정, org 멤버십 기반 접근 제어 추가 · v0.3: 서버를 NestJS로, DB를 기존 MySQL 리소스로 변경, 모노레포 구조 추가 · v0.2: 인프라를 Coolify 자체 운영 + Cloudflare R2로 변경, 기술 스택 추가 |
 | 대상 | Stream 서버·앱·웹 개발자, 배포 담당자 |
 
 ---
@@ -540,6 +540,8 @@ stream-env-backups/                           # R2 버킷 (Coolify 예약 백업
 | `senv push [--file <path>]` | 로컬 `.env`를 diff 확인 후 일괄 반영. 기존 파일 이관에 사용 | M1 |
 | `senv export --format <dotenv\|json\|shell\|yaml>` | 원하는 형식으로 표준 출력 | M1 |
 | `senv doctor` | `.gitignore` 등록, 필수 키 누락, 타입 오류, 시크릿의 공개 접두사 사용 점검 | M1 |
+| `senv agent [install\|uninstall\|status]` | 대시보드에 등록한 로컬 연결을 30초마다 확인해 local 값을 파일로 쓴다. `install`은 로그인 시 자동 시작 등록 (결정 60~63) | M1.1 |
+| `senv link [list\|add\|approve\|reject]` | 이 기기의 로컬 연결 보기, 지금 폴더 연결, 대시보드에서 만든 연결 승인·거절 | M1.1 |
 | `senv sync --target <연결 이름>` | 배포 대상 반영을 로컬·CI에서 실행 (서버에서 닿지 않는 인프라용) | M4 |
 
 ### 6.3 요구사항
@@ -571,6 +573,7 @@ stream-env-backups/                           # R2 버킷 (Coolify 예약 백업
 | 편집·게시 | 셀 편집, `.env` 붙여넣기 일괄 입력, diff 확인 후 메시지와 함께 게시 | M1 |
 | 버전 기록 | 버전 목록, 두 버전 비교, 롤백 | M1 |
 | 키 스키마 | 키별 타입·필수·visibility·buildTime·설명 관리 | M1 |
+| 내 로컬 연결 | 내 기기, 로컬 연결(프로젝트·폴더 경로) 추가·승인 상태, 반영 버전, 덮어쓰기·일시정지 (결정 60~62) | M1.1 |
 | 멤버·권한 | 프로젝트 × 환경 단위 권한, 만료일, 비활성화 | M2 |
 | 서비스 토큰 | CI·자동화용 토큰 발급, 범위·만료 지정, 폐기 | M2 |
 | 감사 로그 | 이벤트 필터·검색, CSV 내보내기 | M2 |
@@ -908,6 +911,7 @@ CLI·CI는 `Authorization: Bearer <token>` 헤더를, 대시보드는 세션 쿠
 | 단계 | 범위 | 완료 기준 |
 | --- | --- | --- |
 | **M1 MVP** | 모노레포 골격, Coolify에 `api`·`worker` 배포, 기존 MySQL에 `stream_env` 연결, R2 연결, GitHub 로그인(org 멤버십 확인, 역할 미리 지정), 프로젝트·환경·변수 편집(매트릭스, 게시, 환경 간 복사, `.env` 붙여넣기), 프로젝트 목록 요약, 버전 스냅샷, 버전 기록·비교·롤백, 키 스키마·검증(클라이언트 노출 검사 포함), 봉투 암호화, CLI `login`·`init`·`pull`·`run`·`list`·`get`·`status`·`diff`·`set`·`push`·`export`·`doctor`, 배포 대상 연동(8장 전체: 제공자 인터페이스와 `target-testkit`, Coolify 제공자, 연결·매핑, 초기 가져오기, diff 미리보기, 게시 시 자동 동기화, 재시작·재배포, 드리프트 감지) | 팀 전원이 development 값을 `senv`로 받아 쓰고, Coolify 앱이 대시보드 값과 일치한다 |
+| **M1.1 로컬 자동 받기** | 기기·로컬 연결 API, `senv agent`(자동 시작 등록, PC 승인, `senv link`), 대시보드 "내 로컬 연결" (결정 60~64, `docs/plans/local-auto-pull.md`) | 팀원이 `senv agent`를 켜 두면 local 게시가 30초 안에 각자의 `.env.local`에 반영된다 |
 | **M2 운영 안전장치** | 프로젝트 × 환경 권한, GitHub org 멤버십 매일 재확인, 감사 로그, 서비스 토큰, 개인 덮어쓰기 파일 | development·production 값 이관 완료, Slack·Notion 사본 삭제 |
 | **M3 배포 대상 연동** | M1으로 옮겼다 (결정 46) | - |
 | **M4 확장** | production 변경 2인 승인, GitHub org 웹훅으로 즉시 권한 회수, GitHub 팀 → 역할 템플릿 매핑, Slack 알림, Coolify Service 지원, 다른 배포 대상 제공자(AWS 등), 시크릿 교체 알림, 오프라인 캐시, `senv sync` | 항목별로 따로 결정 |
@@ -1004,6 +1008,11 @@ v1.0에서 확정한 사항이다. 바꾸려면 이 표를 먼저 고치고 반�
 | 57 | 브라우저 E2E 실행 | Playwright는 로컬에 설치된 Chrome(`channel: 'chrome'`)으로 돌려 브라우저를 내려받지 않고, CI에서만 Chromium을 설치한다. 서버는 테스트 전용 진입점(메모리 저장소, 가짜 GitHub, 메모리 배포 대상)을 따로 빌드(`build:e2e`)해 별도 프로세스로 띄우므로 가짜 코드가 프로덕션 빌드·이미지에 들어가지 않는다. `e2e/browser/run.ts`가 MySQL(로컬 이미지)·마이그레이션·서버·세션 쿠키를 준비한 뒤 Playwright를 자식 프로세스로 돌린다(Playwright 로더가 Node 24에서 testcontainers를 못 불러오기 때문). 몇 분 걸리고 Chrome이 필요해 `pnpm verify`가 아닌 `pnpm test:browser`로 따로 돌리고 CI에서 돌린다. 흐름: 프로젝트 만들기 → 값 게시 → 버전 기록 → 배포 대상 연결 → 매핑 → 지금 동기화 | 4.2 |
 | 58 | CI와 CLI 배포 | GitHub Actions `CI`가 main 푸시와 PR마다 `pnpm verify`, 브라우저 E2E(Chromium 설치), 배포 이미지 검사(`smoke:docker`)를 돌린다. CLI는 `cli-v<version>` 태그를 푸시하면 태그와 `apps/cli/package.json` 버전이 같은지 확인하고 검사한 뒤 GitHub Packages에 올린다(`GITHUB_TOKEN`). `--version`과 package.json 버전이 같은지 테스트로 막는다. Changesets는 M1에서 쓰지 않고 버전은 손으로 올린다 | 4.2, 6.3 |
 | 59 | compose 파일 이름 | 배포용 compose 파일을 `docker-compose.yaml`로 둔다. Coolify Docker Compose 빌드팩의 기본 경로(`/docker-compose.yaml`)와 같아서 리소스를 만들 때 경로를 따로 바꾸지 않아도 된다 | 4.5 |
+| 60 | 로컬 자동 받기 방식 | 대시보드에서 (기기, 프로젝트, 폴더 경로)를 등록하면 개발자 PC의 `senv agent`가 local 값을 그 폴더의 `senv.json` `output` 파일로 쓴다. 브라우저 직접 쓰기(File System Access API)는 Chrome 계열 전용이고 경로 입력, 탭 없이 반영, 권한 600, gitignore 확인이 모두 안 돼서 쓰지 않는다. local 환경만 다룬다. 계획: `docs/plans/local-auto-pull.md` | 6.2, 7.1 |
+| 61 | 로컬 연결 승인 | 대시보드에서 만든 연결과 경로 변경은 PC에서 한 번 승인해야 쓴다(승인 API는 CLI 토큰으로만 부른다). 대시보드 세션이 탈취돼도 임의 파일을 덮어쓰지 못하게 하려는 것이다. 에이전트는 `senv.json`이 있고 프로젝트가 같은 폴더, 심볼릭 링크가 아니고 git이 무시하는 출력 파일에만 쓴다. `senv link add`로 PC에서 등록한 연결은 승인이 필요 없다 | 9.1 |
+| 62 | 로컬에서 고친 파일 | 마지막으로 쓴 내용의 해시와 다르면 덮어쓰지 않고 "로컬에서 수정됨"으로 보고한다. 대시보드에서 덮어쓰기를 누르면 다음 주기에 쓴다 | 6.3 |
+| 63 | 로컬 변경 감지 | 에이전트가 30초마다 자기 기기의 연결과 프로젝트별 현재 local·공유 버전을 조회한다. 지연을 줄여야 하면 같은 API를 롱폴링으로 바꾼다 | 11 |
+| 64 | 로컬 자동 받기 단계 | M1 배포가 안정된 뒤 M2 전에 M1.1로 진행한다 | 12 |
 
 ### 14.1 M1 착수 전에 확인할 것
 
