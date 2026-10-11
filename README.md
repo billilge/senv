@@ -20,17 +20,7 @@ Stream 서버·앱·웹의 환경변수를 한곳에 암호화해 두고, 개발
 
 ## 구조
 
-```mermaid
-flowchart LR
-  CLI["senv CLI · agent<br/>개발자 PC"] --> API
-  WEB["대시보드<br/>React"] --> API
-  GH["GitHub<br/>OAuth · App 웹훅"] <--> API
-  API["api<br/>NestJS"] --> DB[("MySQL<br/>사용자 · 스키마 · 버전")]
-  API --> R2[("Cloudflare R2<br/>암호화된 스냅샷")]
-  WORKER["worker<br/>NestJS"] --> DB
-  WORKER --> R2
-  WORKER --> COOLIFY["Coolify<br/>배포 서버"]
-```
+![senv 구조: CLI·대시보드·GitHub가 api로, api와 worker가 MySQL·R2로, worker가 Coolify로 이어진다](docs/images/architecture.png)
 
 - **봉투 암호화**: 스냅샷마다 새 데이터 키(AES-256-GCM)로 암호화하고, 데이터 키는 마스터 키(KEK)로 감싸 함께 저장한다. DB가 없어도 R2 객체와 KEK만 있으면 값을 되살릴 수 있다.
 - **로그인**: GitHub OAuth로 로그인하고 지정한 GitHub org의 멤버만 들어온다. CLI는 브라우저 디바이스 로그인을 쓰고 토큰은 OS 키체인에 둔다.
